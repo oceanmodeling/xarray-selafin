@@ -1,3 +1,6 @@
+[![Available on pypi](https://img.shields.io/pypi/v/xarray-selafin.svg)](https://pypi.python.org/pypi/xarray-selafin/)
+[![CI](https://github.com/oceanmodeling/xarray-selafin/actions/workflows/run_tests.yml/badge.svg)](https://github.com/oceanmodeling/xarray-selafin/actions/workflows/run_tests.yml)
+
 # xarray backend for Selafin formats
 
 Supports lazy loading by default.
@@ -77,7 +80,7 @@ ds.selafin.write("output_file.slf")
 * time
 * node
 * plan (only in 3D)
- 
+
 ### Coordinates
 
 | Coordinate | Description            |
@@ -90,7 +93,7 @@ ds.selafin.write("output_file.slf")
 
 All attributes are optional except `ikle2`:
 
-| Attribute  | Description                                                             | Default value            | 
+| Attribute  | Description                                                             | Default value            |
 |------------|-------------------------------------------------------------------------|--------------------------|
 | title      | Serafin title                                                           | "" (empty string)        |
 | language   | Language for variable detection                                         | "en"                     |
