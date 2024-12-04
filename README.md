@@ -5,15 +5,15 @@
 
 Supports lazy loading by default.
 
-## Dev guide
+## Install
 
-To have the backend working in xarray, follow these steps:
+To have the backend working in xarray, you need to follow these steps:
 
 ```
 pip install xarray-selafin
 ```
 
-or, if you are using, conda:
+or, if you are using conda/mamba:
 
 ```
 conda install -c conda-forge xarray_selafin
