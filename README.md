@@ -23,8 +23,14 @@ conda install -c conda-forge xarray_selafin
 
 ```python
 import xarray as xr
-ds = xr.open_dataset("tests/data/r3d_tidal_flats.slf", engine="selafin")
+
+with xr.open_dataset("tests/data/r3d_tidal_flats.slf", engine="selafin") as ds:
+    print(ds)  # do something with `ds`...
+    # `ds.close()` not necessary
+
 ds = xr.open_dataset("tests/data/r3d_tidal_flats.slf", lang="fr", engine="selafin")  # if variables are in French
+print(ds)  # do something with `ds`...
+ds.close()  # avoid a ResourceWarning (unclosed file)
 ```
 
 ```
