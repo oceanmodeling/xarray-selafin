@@ -210,10 +210,10 @@ class SerafinHeader:
         If file format is not recognized, the file is expected to be simple precision
         """
         self.file_format = bytes(file_format, SLF_EIT).ljust(8)
-        if file_format in ("SERAFIND", "       D"):
+        if file_format in ("SERAFIND", "SELAFIND", "       D"):
             self._set_as_double_precision()
         else:
-            if file_format not in ("        ", "SERAFIN ", "SERAFINS", "SERAPHIN"):
+            if file_format not in ("SERAFIN ", "SERAFINS", "SELAFIN ", "SERAPHIN"):
                 logger.warning(
                     'Format "%s" is unknown and is forced to "SERAFIN "' % file_format
                 )
@@ -246,7 +246,7 @@ class SerafinHeader:
             self.nb_planes,
             0,
             0,
-            1,
+            0 if self.date is None else 1,
         )
 
     def _build_ikle_2d(self):
