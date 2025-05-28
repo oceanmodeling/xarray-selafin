@@ -120,7 +120,7 @@ class SerafinHeader:
     - nb_nodes_per_elem <int>: number of nodes per element (= 3 in 2D and 6 in 3D)
     - nb_nodes_2d <int>: number of 2D nodes (equals to `nb_nodes` in 2D)
 
-    - mesh_origin <(float, float)>: x and y shift to apply to written coordinates (set by `set_mesh_origin`)
+    - mesh_origin <(int, int)>: x and y shift to apply to written coordinates (set by `set_mesh_origin`)
     - x_stored <numpy.1D-array>: east written coordinates [shape = nb_nodes]
     - y_stored <numpy.1D-array>: north written coordinates [shape = nb_nodes]
     - x <numpy.1D-array>: east coordinates [shape = nb_nodes] (set by `_compute_mesh_coordinates`)
@@ -177,7 +177,7 @@ class SerafinHeader:
         self.nb_nodes_per_elem = -1
         self.nb_nodes_2d = -1
 
-        self.mesh_origin = (0.0, 0.0)
+        self.mesh_origin = (0, 0)
         self.x_stored = None
         self.y_stored = None
         self.x = None
@@ -240,11 +240,11 @@ class SerafinHeader:
             1,
             0,
             self.mesh_origin[0],
-            self.mesh_origin[0],
+            self.mesh_origin[1],
             0,
             0,
             self.nb_planes,
-            self.nb_elements,
+            0,
             0,
             1,
         )
@@ -803,6 +803,7 @@ class SerafinHeader:
         self._compute_mesh_coordinates()
         self.ikle = ikle.flatten()
         self._build_ikle_2d()
+        self.build_params()
         if ipobo is None:
             self.build_ipobo()
         else:
