@@ -162,9 +162,9 @@ def write_serafin(fout, ds):
         temp = np.empty(shape, dtype=slf_header.np_float_type)
         for iv, var in enumerate(slf_header.var_IDs):
             if slf_header.nb_frames == 1:
-                temp[iv] = ds[var]
+                temp[iv] = ds[var].values
             else:
-                temp[iv] = ds.isel(time=it)[var]
+                temp[iv] = ds.isel(time=it)[var].values
             if slf_header.nb_planes > 1:
                 temp[iv] = np.reshape(np.ravel(temp[iv]), (slf_header.nb_planes, slf_header.nb_nodes_2d))
         resout.write_entire_frame(
