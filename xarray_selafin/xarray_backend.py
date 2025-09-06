@@ -211,7 +211,7 @@ class SelafinLazyArray(BackendArray):
             raise ValueError("time_key must be an integer or slice")
 
         if isinstance(node_key, slice):
-            node_indices = range(*node_key.indices(self.shape[2]))
+            node_indices = range(*node_key.indices(self.shape[-1]))
         elif isinstance(node_key, int):
             node_indices = [node_key]
         else:
