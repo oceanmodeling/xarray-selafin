@@ -249,9 +249,9 @@ class SelafinLazyArray(BackendArray):
             if plan_key is None:
                 data = data[:, 0]
             else:
-                data = data[:, 0, :]
+                data = data[:, :, 0]
         if isinstance(plan_key, int):
-            data = data[..., 0]
+            data = data[:, 0, :]
         if isinstance(time_key, int):
             data = data[0, ...]
         return data
