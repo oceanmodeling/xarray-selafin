@@ -245,7 +245,15 @@ class SelafinLazyArray(BackendArray):
                     data[it] = np.reshape(values, (len(plan_indices), len(node_indices)))
 
         # Remove dimension if the size was reduced to 1 due to indexing of integer
-        data = data.squeeze()
+        if isinstance(node_key, int):
+            if plan_key is None:
+                data = data[:, 0]
+            else:
+                data = data[:, :, 0]
+        if isinstance(plan_key, int):
+            data = data[:, 0, ...]
+        if isinstance(time_key, int):
+            data = data[0, ...]
         return data
 
 
