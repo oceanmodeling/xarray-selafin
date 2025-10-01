@@ -151,26 +151,26 @@ def write_serafin(fout, ds):
 
         t0 = np.datetime64(datetime(*slf_header.date))
 
-        try:
-            time_serie = compute_duration_between_datetime(t0, ds.time.values)
-        except AttributeError:
-            return  # no time (header only is written)
-        if isinstance(time_serie, float):
-            time_serie = [time_serie]
-        for it, t_ in enumerate(time_serie):
-            temp = np.empty(shape, dtype=slf_header.np_float_type)
-            for iv, var in enumerate(slf_header.var_IDs):
-                if slf_header.nb_frames == 1:
-                    temp[iv] = ds[var]
-                else:
-                    temp[iv] = ds.isel(time=it)[var]
-                if slf_header.nb_planes > 1:
-                    temp[iv] = np.reshape(np.ravel(temp[iv]), (slf_header.nb_planes, slf_header.nb_nodes_2d))
-            resout.write_entire_frame(
-                slf_header,
-                t_,
-                np.reshape(temp, (slf_header.nb_var, slf_header.nb_nodes)),
-            )
+    try:
+        time_serie = compute_duration_between_datetime(t0, ds.time.values)
+    except AttributeError:
+        return  # no time (header only is written)
+    if isinstance(time_serie, float):
+        time_serie = [time_serie]
+    for it, t_ in enumerate(time_serie):
+        temp = np.empty(shape, dtype=slf_header.np_float_type)
+        for iv, var in enumerate(slf_header.var_IDs):
+            if slf_header.nb_frames == 1:
+                temp[iv] = ds[var].values
+            else:
+                temp[iv] = ds.isel(time=it)[var].values
+            if slf_header.nb_planes > 1:
+                temp[iv] = np.reshape(np.ravel(temp[iv]), (slf_header.nb_planes, slf_header.nb_nodes_2d))
+        resout.write_entire_frame(
+            slf_header,
+            t_,
+            np.reshape(temp, (slf_header.nb_var, slf_header.nb_nodes)),
+        )
 
 
 class SelafinLazyArray(BackendArray):
