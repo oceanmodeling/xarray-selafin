@@ -991,7 +991,7 @@ class Serafin:
         self.file = open(self.filename, self.mode)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, *args, **kwargs):
         self.file.close()
         return False
 

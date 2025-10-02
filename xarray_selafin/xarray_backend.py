@@ -146,32 +146,31 @@ def write_serafin(fout, ds):
     except KeyError:
         slf_header.build_params()
 
-    resout = Serafin.Write(fout, slf_header.language, overwrite=True)
-    resout.__enter__()
-    resout.write_header(slf_header)
+    with Serafin.Write(fout, slf_header.language, overwrite=True) as resout:
+        resout.write_header(slf_header)
 
-    t0 = np.datetime64(datetime(*slf_header.date))
+        t0 = np.datetime64(datetime(*slf_header.date))
 
-    try:
-        time_serie = compute_duration_between_datetime(t0, ds.time.values)
-    except AttributeError:
-        return  # no time (header only is written)
-    if isinstance(time_serie, float):
-        time_serie = [time_serie]
-    for it, t_ in enumerate(time_serie):
-        temp = np.empty(shape, dtype=slf_header.np_float_type)
-        for iv, var in enumerate(slf_header.var_IDs):
-            if slf_header.nb_frames == 1:
-                temp[iv] = ds[var].values
-            else:
-                temp[iv] = ds.isel(time=it)[var].values
-            if slf_header.nb_planes > 1:
-                temp[iv] = np.reshape(np.ravel(temp[iv]), (slf_header.nb_planes, slf_header.nb_nodes_2d))
-        resout.write_entire_frame(
-            slf_header,
-            t_,
-            np.reshape(temp, (slf_header.nb_var, slf_header.nb_nodes)),
-        )
+        try:
+            time_serie = compute_duration_between_datetime(t0, ds.time.values)
+        except AttributeError:
+            return  # no time (header only is written)
+        if isinstance(time_serie, float):
+            time_serie = [time_serie]
+        for it, t_ in enumerate(time_serie):
+            temp = np.empty(shape, dtype=slf_header.np_float_type)
+            for iv, var in enumerate(slf_header.var_IDs):
+                if slf_header.nb_frames == 1:
+                    temp[iv] = ds[var].values
+                else:
+                    temp[iv] = ds.isel(time=it)[var].values
+                if slf_header.nb_planes > 1:
+                    temp[iv] = np.reshape(np.ravel(temp[iv]), (slf_header.nb_planes, slf_header.nb_nodes_2d))
+            resout.write_entire_frame(
+                slf_header,
+                t_,
+                np.reshape(temp, (slf_header.nb_var, slf_header.nb_nodes)),
+            )
 
 
 class SelafinLazyArray(BackendArray):
@@ -318,6 +317,11 @@ class SelafinBackendEntrypoint(BackendEntrypoint):
         }
 
         ds = xr.Dataset(data_vars=data_vars, coords=coords)
+
+        # Avoid a ResourceWarning (unclosed file)
+        def close():
+            slf.__exit__()
+        ds.set_close(close)
 
         ds.attrs["title"] = slf.header.title.decode(Serafin.SLF_EIT).strip()
         ds.attrs["language"] = slf.header.language
