@@ -4,6 +4,13 @@ import pytest
 import xarray as xr
 from scipy.spatial import Delaunay
 
+BUMP = pytest.mark.parametrize(
+    "slf_in",
+    [
+        pytest.param("tests/data/r3d_bump.slf", id="3D"),
+    ],
+)
+
 TIDAL_FLATS = pytest.mark.parametrize(
     "slf_in",
     [
@@ -80,7 +87,6 @@ def test_to_netcdf(tmp_path, slf_in):
 @TIDAL_FLATS
 def test_to_selafin(tmp_path, slf_in):
     with xr.open_dataset(slf_in, engine="selafin") as ds_slf:
-
         # Remove some data which is rebuilt
         del ds_slf.attrs["date_start"]
 
@@ -98,7 +104,6 @@ def test_to_selafin(tmp_path, slf_in):
 @TIDAL_FLATS
 def test_to_selafin_eager_mode(tmp_path, slf_in):
     with xr.open_dataset(slf_in, lazy_loading=False, engine="selafin") as ds_slf:
-
         # Remove some data which is rebuilt
         del ds_slf.attrs["date_start"]
 
@@ -167,3 +172,14 @@ def test_from_scratch(tmp_path):
 def test_dim(slf_in):
     with xr.open_dataset(slf_in, engine="selafin") as ds:
         repr(ds)
+
+
+@BUMP
+def test_eager_vs_lazy(slf_in):
+    with xr.load_dataset(slf_in, engine="selafin") as ds_eager:
+        z_levels_eager = ds_eager.Z.isel(time=0).drop_vars("time")
+        dz_eager = z_levels_eager.diff(dim="plan")
+        with xr.open_dataset(slf_in, engine="selafin") as ds_lazy:
+            z_levels_lazy = ds_lazy.Z.isel(time=0).drop_vars("time")
+            dz_lazy = z_levels_lazy.diff(dim="plan")
+            xr.testing.assert_allclose(dz_eager, dz_lazy, rtol=1e-3)
