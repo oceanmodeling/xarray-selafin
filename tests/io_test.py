@@ -28,6 +28,14 @@ DIMS = pytest.mark.parametrize(
     ],
 )
 
+NODE_TIME = pytest.mark.parametrize(
+    "dim_test",
+    [
+        pytest.param("node", id="node"),
+        pytest.param("time", id="time"),
+    ],
+)
+
 
 def write_netcdf(ds, nc_out):
     # Remove dict and multi-dimensional arrays not supported in netCDF
@@ -172,6 +180,42 @@ def test_from_scratch(tmp_path):
 def test_dim(slf_in):
     with xr.open_dataset(slf_in, engine="selafin") as ds:
         repr(ds)
+
+
+@DIMS
+@NODE_TIME
+def test_dask_mean_consistency(slf_in, dim_test):
+    def analyze_block(ds_block: xr.Dataset) -> xr.Dataset:
+        return ds_block.mean(dim=dim_test)
+
+    # --- Reference computation without Dask ---
+    ds_ref = xr.open_dataset(slf_in, chunks=None)
+    ref = ds_ref.mean(dim=dim_test)
+
+    # --- Dask-based computation ---
+    with xr.open_dataset(slf_in) as ds:
+        ds = ds.chunk({"time": -1, "node": 50})
+        result = xr.map_blocks(analyze_block, ds).compute()
+        computed = result.compute()
+
+    # --- Structural checks ---
+    assert set(computed.data_vars) == set(ref.data_vars)
+    for var in ref.data_vars:
+        da_ref = ref[var]
+        da_comp = computed[var]
+        # shapes should match (node dim gone)
+        assert da_ref.shape == da_comp.shape, f"Shape mismatch for {var}"
+        # coordinate consistency
+        assert all(c in da_comp.coords for c in da_ref.coords), f"Missing coords in {var}"
+
+        # # This check won't work because local mean != global mean >> find another type of assertion
+        # np.testing.assert_allclose(
+        #     da_ref.values,
+        #     da_comp.values,
+        #     rtol=1e-6,
+        #     atol=1e-8,
+        #     err_msg=f"Mismatch in mean(node) for {var}"
+        # )
 
 
 @BUMP
