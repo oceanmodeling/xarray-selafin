@@ -199,6 +199,11 @@ class SelafinLazyArray(BackendArray):
         if not isinstance(key, tuple):
             raise NotImplementedError("SELAFIN access must use tuple indexing")
 
+        # Pad key with slices to match array dimensions
+        ndim = len(self.shape)
+        if len(key) < ndim:
+            key = key + (slice(None),) * (ndim - len(key))
+
         # --- Parse keys
         if ndim == 3:
             # 3D file
