@@ -195,7 +195,7 @@ def test_dask_mean_consistency(slf_in, dim_test):  # requires dask
     # --- Dask-based computation ---
     with xr.open_dataset(slf_in, engine="selafin") as ds:
         ds = ds.chunk({"time": -1, "node": 50})
-        result = xr.map_blocks(analyze_block, ds).compute()
+        result = xr.map_blocks(analyze_block, ds)
         computed = result.compute()
 
     # --- Structural checks ---

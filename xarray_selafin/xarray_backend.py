@@ -26,6 +26,15 @@ except ImportError:
 DEFAULT_DATE_START = (1900, 1, 1, 0, 0, 0)
 
 
+def range_from_key(k, n):
+    if isinstance(k, slice):
+        return range(*k.indices(n))
+    elif isinstance(k, int):
+        return range(k, k + 1)
+    else:
+        raise ValueError("index must be int or slice")
+
+
 def compute_duration_between_datetime(t0, time_serie):
     return (time_serie - t0).astype("timedelta64[s]").astype(float)
 
@@ -204,71 +213,72 @@ class SelafinLazyArray(BackendArray):
             self._raw_indexing_method,
         )
 
-    def _raw_indexing_method(self, key):
-        with self.lock:
-            ndim = len(self.shape)
-            if ndim not in (2, 3):
-                raise NotImplementedError(f"Unsupported SELAFIN shape {self.shape}")
+    def _raw_indexing_method_unlocked(self, key):
+        ndim = self.ndim  # = len(self.shape)
+        if ndim not in (2, 3):
+            raise NotImplementedError(f"Unsupported SELAFIN shape {ndim}")
+        assert len(key) == len(self.shape)
 
-            if not isinstance(key, tuple):
-                raise NotImplementedError("SELAFIN access must use tuple indexing")
+        if not isinstance(key, tuple):
+            raise NotImplementedError("SELAFIN access must use tuple indexing")
 
-            # Pad key with slices to match array dimensions
-            ndim = len(self.shape)
-            if len(key) < ndim:
-                key = key + (slice(None),) * (ndim - len(key))
+        nb_nodes_2d = self.shape[-1]  # last dimension
 
-            # --- Parse keys
+        # Parse keys
+        if ndim == 3:  # (3D)
+            time_key, plan_key, node_key = key
+        else:  # ndim = 2 (2D)
+            time_key, node_key = key
+            plan_key = None
+
+        # Build indices
+        time_range = range_from_key(time_key, self.shape[0])
+        if ndim == 3:  # (3D)
+            nb_planes = self.shape[1]
+            plan_range = range_from_key(plan_key, nb_planes)
+            node_range = range_from_key(node_key, nb_nodes_2d)
+            ds_shape = (len(time_range), len(plan_range), len(node_range))
+        else:  # ndim = 2 (2D)
+            nb_planes = 1
+            node_range = range_from_key(node_key, nb_nodes_2d)
+            ds_shape = (len(time_range), len(node_range))
+            plan_range = None
+
+        res_array = np.empty(ds_shape, dtype=self.dtype)
+
+        for ds_index_time, time_index in enumerate(time_range):
+            flatten_values = self.filename_or_obj.read_var_in_frame(time_index, self.var)  # flatten np.ndarray
             if ndim == 3:
-                # 3D file
-                if len(key) == 3:
-                    time_key, plan_key, node_key = key
-                elif len(key) == 2:
-                    time_key, node_key = key
-                    plan_key = slice(None)
+                all_values = flatten_values.reshape((nb_planes, nb_nodes_2d))
+                if plan_range == slice(None, None, None) and node_key == slice(None, None, None):  # avoid a subset to speedup
+                    res_array[ds_index_time, :, :] = all_values
                 else:
-                    raise NotImplementedError("Only (time, plan, node) or (time, node) supported for 3D files")
+                    res_array[ds_index_time, :, :] = all_values[np.ix_(plan_range, node_range)]
             else:
-                # 2D file
-                if len(key) == 2:
-                    time_key, node_key = key
-                elif len(key) == 1:
-                    time_key = key[0]
-                    node_key = slice(None)
+                if node_key == slice(None, None, None):  # avoid a subset to speedup
+                    res_array[ds_index_time, :] = flatten_values
                 else:
-                    raise NotImplementedError("Only (time, node) supported for 2D files")
+                    res_array[ds_index_time, :] = flatten_values[node_range]
 
-            # --- helper
-            def _range_from_key(k, n):
-                if isinstance(k, slice):
-                    return range(*k.indices(n))
-                elif isinstance(k, int):
-                    return [k]
-                else:
-                    raise ValueError("index must be int or slice")
+        # Remove some dimensions if it was selected by integer
+        squeeze_dims = []
+        if isinstance(time_key, int):
+            squeeze_dims.append(0)
+        if isinstance(plan_key, int):
+            squeeze_dims.append(1)
+        if isinstance(node_key, int):
+            squeeze_dims.append(-1)
+        if squeeze_dims:
+            res_array = np.squeeze(res_array, axis=tuple(squeeze_dims))
 
-            time_indices = _range_from_key(time_key, self.shape[0])
+        return res_array
 
-            if ndim == 3:
-                plan_indices = _range_from_key(plan_key, self.shape[1])
-                node_indices = _range_from_key(node_key, self.shape[2])
-                data_shape = (len(time_indices), len(plan_indices), len(node_indices))
-            else:  # ndim = 2
-                node_indices = _range_from_key(node_key, self.shape[1])
-                data_shape = (len(time_indices), len(node_indices))
-
-            data = np.empty(data_shape, dtype=self.dtype)
-
-            for data_index, time_index in enumerate(time_indices):
-                temp = self.filename_or_obj.read_var_in_frame(time_index, self.var)  # np.ndarray
-
-                if ndim == 3:
-                    temp = np.reshape(temp, (self.shape[1], self.shape[2]))  # (nplan, nnode)
-                    data[data_index, :, :] = temp[np.ix_(plan_indices, node_indices)]
-                else:  # ndim = 2
-                    data[data_index, :] = temp[node_indices]
-
-            return data.squeeze()
+    def _raw_indexing_method(self, key):
+        if self.lock is None:
+            return self._raw_indexing_method_unlocked(key)
+        else:
+            with self.lock:
+                return self._raw_indexing_method_unlocked(key)
 
 
 class SelafinBackendEntrypoint(BackendEntrypoint):
