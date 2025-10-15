@@ -184,7 +184,7 @@ def test_dim(slf_in):
 
 @DIMS
 @NODE_TIME
-def test_dask_mean_consistency(slf_in, dim_test):
+def test_dask_mean_consistency(slf_in, dim_test):  # requires dask
     def analyze_block(ds_block: xr.Dataset) -> xr.Dataset:
         return ds_block.mean(dim=dim_test)
 

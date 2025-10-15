@@ -1100,9 +1100,13 @@ class Read(Serafin):
         pos_var = self._get_var_index(var_ID)
         self._seek_to_frame(time_index, pos_var)
         self.file.read(4)
-        return self.unpack_array(
+        array = self.unpack_array(
             self.header.float_size * self.header.nb_nodes, self.header.np_type
         )
+        if len(array) != self.header.nb_nodes:
+            raise SerafinRequestError("CRITICAL ERROR: buffer was truncated (%i vs %i values) while reading"
+                                      % (len(array), self.header.nb_nodes))
+        return array
 
     def read_vars_in_frame(self, time_index, var_IDs=None):
         """!

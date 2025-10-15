@@ -1,15 +1,26 @@
+"""
+Documentation on how to implement a new backend in xarray
+* https://docs.xarray.dev/en/latest/internals/how-to-add-new-backend.html
+* https://tutorial.xarray.dev/advanced/backends/2.Backend_with_Lazy_Loading.html
+"""
 import os
 from datetime import datetime
 from datetime import timedelta
-from operator import attrgetter
-
 import numpy as np
+from operator import attrgetter
+import threading
 import xarray as xr
-from xarray.backends import BackendArray
-from xarray.backends import BackendEntrypoint
+from xarray.backends import BackendArray, BackendEntrypoint
 from xarray.core import indexing
 
 from xarray_selafin import Serafin
+
+
+try:
+    import dask
+    DASK_AVAILABLE = True
+except ImportError:
+    DASK_AVAILABLE = False
 
 
 DEFAULT_DATE_START = (1900, 1, 1, 0, 0, 0)
@@ -157,31 +168,33 @@ def write_serafin(fout, ds):
             return  # no time (header only is written)
         if isinstance(time_serie, float):
             time_serie = [time_serie]
-        for it, t_ in enumerate(time_serie):
+        for time_index, time in enumerate(time_serie):
             temp = np.empty(shape, dtype=slf_header.np_float_type)
             for iv, var in enumerate(slf_header.var_IDs):
                 if slf_header.nb_frames == 1:
                     temp[iv] = ds[var].values
                 else:
-                    temp[iv] = ds.isel(time=it)[var].values
+                    temp[iv] = ds.isel(time=time_index)[var].values
                 if slf_header.nb_planes > 1:
                     temp[iv] = np.reshape(
                         np.ravel(temp[iv]), (slf_header.nb_planes, slf_header.nb_nodes_2d)
                     )
             resout.write_entire_frame(
                 slf_header,
-                t_,
+                time,
                 np.reshape(temp, (slf_header.nb_var, slf_header.nb_nodes)),
             )
 
 
 class SelafinLazyArray(BackendArray):
-    # not implemented yet: too slow
-    def __init__(self, slf_reader, var, dtype, shape):
-        self.slf_reader = slf_reader
-        self.var = var
-        self.dtype = dtype
+
+    def __init__(self, filename_or_obj, shape, dtype, lock, var):
+        self.filename_or_obj = filename_or_obj
         self.shape = shape
+        self.dtype = dtype
+        self.lock = lock
+        # Below are other backend specific keyword arguments
+        self.var = var
 
     def __getitem__(self, key):
         return indexing.explicit_indexing_adapter(
@@ -192,71 +205,70 @@ class SelafinLazyArray(BackendArray):
         )
 
     def _raw_indexing_method(self, key):
-        ndim = len(self.shape)
-        if ndim not in (2, 3):
-            raise NotImplementedError(f"Unsupported SELAFIN shape {self.shape}")
+        with self.lock:
+            ndim = len(self.shape)
+            if ndim not in (2, 3):
+                raise NotImplementedError(f"Unsupported SELAFIN shape {self.shape}")
 
-        if not isinstance(key, tuple):
-            raise NotImplementedError("SELAFIN access must use tuple indexing")
+            if not isinstance(key, tuple):
+                raise NotImplementedError("SELAFIN access must use tuple indexing")
 
-        # Pad key with slices to match array dimensions
-        ndim = len(self.shape)
-        if len(key) < ndim:
-            key = key + (slice(None),) * (ndim - len(key))
+            # Pad key with slices to match array dimensions
+            ndim = len(self.shape)
+            if len(key) < ndim:
+                key = key + (slice(None),) * (ndim - len(key))
 
-        # --- Parse keys
-        if ndim == 3:
-            # 3D file
-            if len(key) == 3:
-                time_key, plan_key, node_key = key
-            elif len(key) == 2:
-                time_key, node_key = key
-                plan_key = slice(None)
-            else:
-                raise NotImplementedError("Only (time, plan, node) or (time, node) supported for 3D files")
-        else:
-            # 2D file
-            if len(key) == 2:
-                time_key, node_key = key
-            elif len(key) == 1:
-                time_key = key[0]
-                node_key = slice(None)
-            else:
-                raise NotImplementedError("Only (time, node) supported for 2D files")
-
-        # --- helper
-        def _range_from_key(k, n):
-            if isinstance(k, slice):
-                return range(*k.indices(n))
-            elif isinstance(k, int):
-                return [k]
-            else:
-                raise ValueError("index must be int or slice")
-
-        time_indices = _range_from_key(time_key, self.shape[0])
-
-        if ndim == 3:
-            plan_indices = _range_from_key(plan_key, self.shape[1])
-            node_indices = _range_from_key(node_key, self.shape[2])
-            data_shape = (len(time_indices), len(plan_indices), len(node_indices))
-        else:
-            node_indices = _range_from_key(node_key, self.shape[1])
-            data_shape = (len(time_indices), len(node_indices))
-
-        data = np.empty(data_shape, dtype=self.dtype)
-
-        for it, t in enumerate(time_indices):
-            temp = self.slf_reader.read_var_in_frame(t, self.var)
+            # --- Parse keys
             if ndim == 3:
-                temp = np.reshape(temp, (self.shape[1], self.shape[2]))  # (nplan, nnode)
-                values = temp[np.ix_(plan_indices, node_indices)]
-                data[it, :, :] = values
+                # 3D file
+                if len(key) == 3:
+                    time_key, plan_key, node_key = key
+                elif len(key) == 2:
+                    time_key, node_key = key
+                    plan_key = slice(None)
+                else:
+                    raise NotImplementedError("Only (time, plan, node) or (time, node) supported for 3D files")
             else:
-                temp = np.asarray(temp)  # (nnode,)
-                values = temp[node_indices]
-                data[it, :] = values
+                # 2D file
+                if len(key) == 2:
+                    time_key, node_key = key
+                elif len(key) == 1:
+                    time_key = key[0]
+                    node_key = slice(None)
+                else:
+                    raise NotImplementedError("Only (time, node) supported for 2D files")
 
-        return data.squeeze()
+            # --- helper
+            def _range_from_key(k, n):
+                if isinstance(k, slice):
+                    return range(*k.indices(n))
+                elif isinstance(k, int):
+                    return [k]
+                else:
+                    raise ValueError("index must be int or slice")
+
+            time_indices = _range_from_key(time_key, self.shape[0])
+
+            if ndim == 3:
+                plan_indices = _range_from_key(plan_key, self.shape[1])
+                node_indices = _range_from_key(node_key, self.shape[2])
+                data_shape = (len(time_indices), len(plan_indices), len(node_indices))
+            else:  # ndim = 2
+                node_indices = _range_from_key(node_key, self.shape[1])
+                data_shape = (len(time_indices), len(node_indices))
+
+            data = np.empty(data_shape, dtype=self.dtype)
+
+            for data_index, time_index in enumerate(time_indices):
+                temp = self.filename_or_obj.read_var_in_frame(time_index, self.var)  # np.ndarray
+
+                if ndim == 3:
+                    temp = np.reshape(temp, (self.shape[1], self.shape[2]))  # (nplan, nnode)
+                    data[data_index, :, :] = temp[np.ix_(plan_indices, node_indices)]
+                else:  # ndim = 2
+                    data[data_index, :] = temp[node_indices]
+
+            return data.squeeze()
 
 
 class SelafinBackendEntrypoint(BackendEntrypoint):
@@ -269,6 +281,7 @@ class SelafinBackendEntrypoint(BackendEntrypoint):
         # Below are custom arguments
         lazy_loading=True,
         lang=Serafin.LANG,
+        # `chunks` and `cache` DO NOT go here, they are handled by xarray
     ):
         # Initialize SELAFIN reader
         slf = read_serafin(filename_or_obj, lang)
@@ -296,14 +309,24 @@ class SelafinBackendEntrypoint(BackendEntrypoint):
             shape = (len(times), nplan, npoin2)
             dims = ["time", "plan", "node"]
 
+        if DASK_AVAILABLE:
+            file_lock = dask.utils.SerializableLock()
+        else:
+            file_lock = threading.Lock()
+
         for var in vars:
             if lazy_loading:
-                lazy_array = SelafinLazyArray(slf, var, dtype, shape)
+                lazy_array = SelafinLazyArray(
+                    filename_or_obj=slf,
+                    shape=shape,
+                    dtype=dtype,
+                    lock=file_lock,
+                    var=var)
                 data = indexing.LazilyIndexedArray(lazy_array)
                 data_vars[var] = xr.Variable(dims=dims, data=data)
             else:
                 data = np.empty(shape, dtype=dtype)
-                for time_index, t in enumerate(times):
+                for time_index, _ in enumerate(times):
                     values = slf.read_var_in_frame(time_index, var)
                     if is_2d:
                         data[time_index, :] = values
