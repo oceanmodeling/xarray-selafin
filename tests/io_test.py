@@ -189,11 +189,11 @@ def test_dask_mean_consistency(slf_in, dim_test):
         return ds_block.mean(dim=dim_test)
 
     # --- Reference computation without Dask ---
-    ds_ref = xr.open_dataset(slf_in, chunks=None)
+    ds_ref = xr.open_dataset(slf_in, engine="selafin", chunks=None)
     ref = ds_ref.mean(dim=dim_test)
 
     # --- Dask-based computation ---
-    with xr.open_dataset(slf_in) as ds:
+    with xr.open_dataset(slf_in, engine="selafin") as ds:
         ds = ds.chunk({"time": -1, "node": 50})
         result = xr.map_blocks(analyze_block, ds).compute()
         computed = result.compute()
