@@ -220,10 +220,10 @@ def test_dask_mean_consistency(slf_in, dim_test):
 
 @BUMP
 def test_eager_vs_lazy(slf_in):
-    with xr.load_dataset(slf_in, engine="selafin") as ds_eager:
+    with xr.load_dataset(slf_in, lazy_loading=False, engine="selafin") as ds_eager:
         z_levels_eager = ds_eager.Z.isel(time=0).drop_vars("time")
         dz_eager = z_levels_eager.diff(dim="plan")
-        with xr.open_dataset(slf_in, engine="selafin") as ds_lazy:
+        with xr.open_dataset(slf_in, lazy_loading=True, engine="selafin") as ds_lazy:
             z_levels_lazy = ds_lazy.Z.isel(time=0).drop_vars("time")
             dz_lazy = z_levels_lazy.diff(dim="plan")
             xr.testing.assert_allclose(dz_eager, dz_lazy, rtol=1e-3)
