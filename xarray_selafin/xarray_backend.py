@@ -142,6 +142,7 @@ class SelafinBackendEntrypoint(BackendEntrypoint):
         drop_variables=None,
         decode_times=True,
         # Below are custom arguments
+        disable_lock=False,
         lazy_loading=True,
         lang=Serafin.LANG,
         # `chunks` and `cache` DO NOT go here, they are handled by xarray
@@ -172,10 +173,13 @@ class SelafinBackendEntrypoint(BackendEntrypoint):
             shape = (len(times), nplan, npoin2)
             dims = ["time", "plan", "node"]
 
-        if DASK_AVAILABLE:
-            file_lock = dask.utils.SerializableLock()
+        if disable_lock:
+            file_lock = None
         else:
-            file_lock = threading.Lock()
+            if DASK_AVAILABLE:
+                file_lock = dask.utils.SerializableLock()
+            else:
+                file_lock = threading.Lock()
 
         for var in vars:
             if lazy_loading:
@@ -341,10 +345,6 @@ class SelafinAccessor:
             # Rebuild IPOBO
             header.build_ipobo()
 
-        # if ds.attrs["type"] == "3D":
-        #     header.is_2d = False  # to enable conversion from 3D
-        #     header = header.copy_as_2d()
-
         try:
             header.params = ds.attrs["params"]
         except KeyError:
@@ -375,7 +375,11 @@ class SelafinAccessor:
                         array = self._ds[var].values
                     else:
                         array = self._ds.isel(time=time_index)[var].values
-                    values[var_index, :] = array.ravel()
+                    if header.is_2d:
+                        values[var_index, :] = array
+                    else:
+                        values[var_index, :] = array.ravel()
+
                 resout.write_entire_frame(
                     header,
                     time,
