@@ -234,7 +234,7 @@ def test_eager_vs_lazy(slf_in):
 @BUMP
 def test_get_dataset_as_2d(tmp_path, slf_in):
     with xr.load_dataset(slf_in, engine="selafin") as ds:
-        # Top layer
+        # Bottom layer
         FILENAME = "r3d_bump_extracted_bottom_layer.slf"
         ref_path = Path('tests') / 'data' / FILENAME
         out_path = tmp_path / FILENAME
@@ -242,7 +242,7 @@ def test_get_dataset_as_2d(tmp_path, slf_in):
         ds_bottom_layer.selafin.write(out_path)
         assert equals_two_binary_files(ref_path, out_path)
 
-        # Bottom layer
+        # Top layer
         FILENAME = "r3d_bump_extracted_top_layer.slf"
         ref_path = Path('tests') / 'data' / FILENAME
         out_path = tmp_path / FILENAME

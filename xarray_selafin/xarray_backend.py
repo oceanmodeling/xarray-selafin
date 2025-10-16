@@ -274,6 +274,7 @@ class SelafinAccessor:
         return ds_out
 
     def _build_header(self):
+        """Build a SerafinHeader corresponding to DataSet"""
         ds = self._ds
 
         # Title
@@ -372,6 +373,7 @@ class SelafinAccessor:
         self._header = header
 
     def _write_all(self, filepath):
+        """Writes header and all data frames into output file"""
         header = self._header
 
         with Serafin.Write(filepath, header.language, overwrite=True) as resout:
@@ -409,7 +411,7 @@ class SelafinAccessor:
         """
         Write data from an Xarray dataset to a SELAFIN file.
         Parameters:
-        - filename: String with the path to the output SELAFIN file.
+        - filepath: String with the path to the output SELAFIN file.
         """
         self._build_header()
         self._write_all(filepath)

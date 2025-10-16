@@ -74,6 +74,12 @@ ds = ds.assign(UTIMES100=lambda x: x.U * 100)  # Add a new variable
 ds.drop_vars(["W"])  # Remove variable `VELOCITY W`
 ```
 
+## Extracting a specific layer from a 3D DataSet
+
+```python
+ds_bottom = ds.selafin.get_dataset_as_2d(plan=0)  # bottom layer
+```
+
 ## Write Selafin
 
 ```python
