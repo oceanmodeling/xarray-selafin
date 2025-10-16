@@ -34,19 +34,19 @@ ds.close()  # avoid a ResourceWarning (unclosed file)
 ```
 
 ```
-<xarray.Dataset>
-Dimensions:  (time: 17, node: 648, plan: 21)
+<xarray.Dataset> Size: 5MB
+Dimensions:  (time: 17, plan: 21, node: 648)
 Coordinates:
-    x        (node) float32 ...
-    y        (node) float32 ...
-  * time     (time) datetime64[ns] 1900-01-01 ... 1900-01-02T20:26:40
-Dimensions without coordinates: node, plan
+    x        (node) float32 3kB ...
+    y        (node) float32 3kB ...
+  * time     (time) datetime64[ns] 136B 1900-01-01 ... 1900-01-02T20:26:40
+Dimensions without coordinates: plan, node
 Data variables:
-    Z        (time, node, plan) <class 'numpy.float64'> ...
-    U        (time, node, plan) <class 'numpy.float64'> ...
-    V        (time, node, plan) <class 'numpy.float64'> ...
-    W        (time, node, plan) <class 'numpy.float64'> ...
-    MUD      (time, node, plan) <class 'numpy.float64'> ...
+    Z        (time, plan, node) float32 925kB ...
+    U        (time, plan, node) float32 925kB ...
+    V        (time, plan, node) float32 925kB ...
+    W        (time, plan, node) float32 925kB ...
+    MUD      (time, plan, node) float32 925kB ...
 Attributes:
     title:       Sloped flume Rouse profile test
     language:    en
@@ -83,9 +83,14 @@ ds.selafin.write("output_file.slf")
 ## DataSet content
 
 ### Dimensions
-* time
-* node
-* plan (only in 3D)
+In 2D:
+1. time
+2. node
+
+in 3D:
+1. time
+2. plan
+3. node
 
 ### Coordinates
 
@@ -99,14 +104,14 @@ ds.selafin.write("output_file.slf")
 
 All attributes are optional except `ikle2`:
 
-| Attribute  | Description                                                             | Default value            |
-|------------|-------------------------------------------------------------------------|--------------------------|
-| title      | Serafin title                                                           | "" (empty string)        |
-| language   | Language for variable detection                                         | "en"                     |
-| float_size | Float size                                                              | 4 (single precision)     |
-| endian     | File endianness                                                         | ">"                      |
-| params     | Table of integer parameters                                             | (can be rebuilt)         |
-| ikle2      | Connectivity table in 2D (1-indexed)                                    | -                        |
-| ikle3      | Connectivity table in 3D (1-indexed, only in 3D, optional)              | (can be rebuilt from 2D) |
-| variables  | Dictionary with variable names and units (key is variable abbreviation) | -                        |
-| date_start | Starting date with integers (year to seconds)                           | (from first time serie)  |
+| Attribute  | Description                                                             | Default value                  |
+|------------|-------------------------------------------------------------------------|--------------------------------|
+| title      | Serafin title                                                           | "Converted with array-serafin" |
+| language   | Language for variable detection                                         | "en"                           |
+| float_size | Float size                                                              | 4 (single precision)           |
+| endian     | File endianness                                                         | ">"                            |
+| params     | Table of integer parameters                                             | (can be rebuilt)               |
+| ikle2      | Connectivity table in 2D (1-indexed)                                    | -                              |
+| ikle3      | Connectivity table in 3D (1-indexed, only in 3D, optional)              | (can be rebuilt from 2D)       |
+| variables  | Dictionary with variable names and units (key is variable abbreviation) | -                              |
+| date_start | Starting date with integers (year to seconds)                           | (from first time serie)        |

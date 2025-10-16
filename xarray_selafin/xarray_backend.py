@@ -39,8 +39,8 @@ def compute_duration_between_datetime(t0, time_serie):
     return (time_serie - t0).astype("timedelta64[s]").astype(float)
 
 
-def read_serafin(f, lang):
-    resin = Serafin.Read(f, lang)
+def read_serafin(filepath, lang):
+    resin = Serafin.Read(filepath, lang)
     resin.__enter__()
     resin.read_header()
     resin.get_time()
@@ -134,6 +134,7 @@ class SelafinLazyArray(BackendArray):
 
 
 class SelafinBackendEntrypoint(BackendEntrypoint):
+
     def open_dataset(
         self,
         filename_or_obj,
@@ -183,7 +184,8 @@ class SelafinBackendEntrypoint(BackendEntrypoint):
                     shape=shape,
                     dtype=dtype,
                     lock=file_lock,
-                    var=var)
+                    var=var,
+                )
                 data = indexing.LazilyIndexedArray(lazy_array)
                 data_vars[var] = xr.Variable(dims=dims, data=data)
             else:
@@ -238,7 +240,7 @@ class SelafinBackendEntrypoint(BackendEntrypoint):
         return ext.lower() in {".slf"}
 
     description = "A SELAFIN file format backend for Xarray"
-    url = "https://www.example.com/selafin_backend_documentation"
+    url = "https://github.com/oceanmodeling/xarray-selafin/"
 
 
 @xr.register_dataset_accessor("selafin")
@@ -266,10 +268,7 @@ class SelafinAccessor:
 
         header.endian = ds.attrs.get("endian", ">")  # Default: ">"
 
-        try:
-            header.nb_frames = ds.time.size
-        except AttributeError:
-            header.nb_frames = 0
+        header.nb_frames = ds.sizes.get("time", 0)
 
         try:
             header.date = ds.attrs["date_start"]
