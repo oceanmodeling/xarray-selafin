@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from pathlib import Path
 import pytest
 import xarray as xr
 from scipy.spatial import Delaunay
@@ -55,6 +56,11 @@ def equals_dataset_vs_netcdf_export(ds, nc_out):
     return ds_nc.equals(ds)
 
 
+def equals_two_binary_files(slf_in, slf_out):
+    with open(slf_in, "rb") as in_slf1, open(slf_out, "rb") as in_slf2:
+        return in_slf1.read() == in_slf2.read()
+
+
 @TIDAL_FLATS
 def test_open_dataset(slf_in):
     with xr.open_dataset(slf_in, engine="selafin") as ds:
@@ -104,9 +110,7 @@ def test_to_selafin(tmp_path, slf_in):
         with xr.open_dataset(slf_out, engine="selafin") as ds_slf2:
             assert ds_slf2.equals(ds_slf)
 
-    # Compare binary files
-    with open(slf_in, "rb") as in_slf1, open(slf_out, "rb") as in_slf2:
-        assert in_slf1.read() == in_slf2.read()
+    assert equals_two_binary_files(slf_in, slf_out)
 
 
 @TIDAL_FLATS
@@ -121,9 +125,7 @@ def test_to_selafin_eager_mode(tmp_path, slf_in):
         with xr.open_dataset(slf_out, engine="selafin") as ds_slf2:
             assert ds_slf2.equals(ds_slf)
 
-    # Compare binary files
-    with open(slf_in, "rb") as in_slf1, open(slf_out, "rb") as in_slf2:
-        assert in_slf1.read() == in_slf2.read()
+    assert equals_two_binary_files(slf_in, slf_out)
 
 
 @TIDAL_FLATS
@@ -227,3 +229,23 @@ def test_eager_vs_lazy(slf_in):
             z_levels_lazy = ds_lazy.Z.isel(time=0).drop_vars("time")
             dz_lazy = z_levels_lazy.diff(dim="plan")
             xr.testing.assert_allclose(dz_eager, dz_lazy, rtol=1e-3)
+
+
+@BUMP
+def test_get_dataset_as_2d(tmp_path, slf_in):
+    with xr.load_dataset(slf_in, engine="selafin") as ds:
+        # Top layer
+        FILENAME = "r3d_bump_extracted_bottom_layer.slf"
+        ref_path = Path('tests') / 'data' / FILENAME
+        out_path = tmp_path / FILENAME
+        ds_bottom_layer = ds.selafin.get_dataset_as_2d(plan=0)
+        ds_bottom_layer.selafin.write(out_path)
+        assert equals_two_binary_files(ref_path, out_path)
+
+        # Bottom layer
+        FILENAME = "r3d_bump_extracted_top_layer.slf"
+        ref_path = Path('tests') / 'data' / FILENAME
+        out_path = tmp_path / FILENAME
+        ds_top_layer = ds.selafin.get_dataset_as_2d(plan=4)
+        ds_top_layer.selafin.write(out_path)
+        assert equals_two_binary_files(ref_path, out_path)

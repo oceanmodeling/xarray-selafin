@@ -254,6 +254,25 @@ class SelafinAccessor:
         self._ds = xarray_obj
         self._header = None
 
+    def get_dataset_as_2d(self, plan):
+        """Generate a copy of the current DataSet in a 2D format"""
+        # Check input DataSet
+        if "plan" not in self._ds.dims:
+            raise RuntimeError("get_dataset_as_2d requires a 3D DataSet")
+        assert 0 <= plan <= self._ds.sizes.get("plan") - 1
+
+        # Generate a shallow copy
+        ds_out = self._ds.copy(deep=False).isel(plan=plan)
+
+        nb_nodes_2d = self._ds.sizes.get("node")
+
+        # Remove or adapt some attributes (if present)
+        if "ipobo" in self._ds.attrs:
+            ds_out.attrs["ipobo"] = self._ds.attrs["ipobo"][:nb_nodes_2d]
+        ds_out.attrs.pop("ikle3", None)
+
+        return ds_out
+
     def _build_header(self):
         ds = self._ds
 
@@ -371,7 +390,7 @@ class SelafinAccessor:
             values = np.empty(shape, dtype=header.np_float_type)
             for time_index, time in enumerate(time_serie):
                 for var_index, var in enumerate(header.var_IDs):
-                    if header.nb_frames == 1:
+                    if header.nb_frames in (0, 1):
                         array = self._ds[var].values
                     else:
                         array = self._ds.isel(time=time_index)[var].values
