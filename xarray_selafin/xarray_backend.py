@@ -300,13 +300,13 @@ class SelafinAccessor:
         header.nb_var = len(header.var_IDs)
 
         if "plan" in ds.dims:  # 3D
-            is_2d = False
+            header.is_2d = False
             nplan = len(ds.plan)
             header.nb_nodes_per_elem = 6
             header.nb_elements = len(ds.attrs["ikle2"]) * (nplan - 1)
             header.nb_planes = nplan
         else:  # 2D
-            is_2d = True
+            header.is_2d = True
             nplan = 1  # just to do a multiplication below
             header.nb_nodes_per_elem = ds.attrs["ikle2"].shape[1]
             header.nb_elements = len(ds.attrs["ikle2"])
@@ -317,7 +317,7 @@ class SelafinAccessor:
 
         x = ds.coords["x"].values
         y = ds.coords["y"].values
-        if not is_2d:
+        if not header.is_2d:
             x = np.tile(x, nplan)
             y = np.tile(y, nplan)
         header.x = x
@@ -326,7 +326,7 @@ class SelafinAccessor:
         header.x_stored = x - header.mesh_origin[0]
         header.y_stored = y - header.mesh_origin[1]
         header.ikle_2d = ds.attrs["ikle2"]
-        if is_2d:
+        if header.is_2d:
             header.ikle = header.ikle_2d.flatten()
         else:
             try:
