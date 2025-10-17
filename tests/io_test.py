@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from pathlib import Path
 import pytest
 import xarray as xr
 from scipy.spatial import Delaunay
@@ -28,6 +29,14 @@ DIMS = pytest.mark.parametrize(
     ],
 )
 
+NODE_TIME = pytest.mark.parametrize(
+    "dim_test",
+    [
+        pytest.param("node", id="node"),
+        pytest.param("time", id="time"),
+    ],
+)
+
 
 def write_netcdf(ds, nc_out):
     # Remove dict and multi-dimensional arrays not supported in netCDF
@@ -45,6 +54,11 @@ def equals_dataset_vs_netcdf_export(ds, nc_out):
     write_netcdf(ds, nc_out)
     ds_nc = xr.open_dataset(nc_out)
     return ds_nc.equals(ds)
+
+
+def equals_two_binary_files(slf_in, slf_out):
+    with open(slf_in, "rb") as in_slf1, open(slf_out, "rb") as in_slf2:
+        return in_slf1.read() == in_slf2.read()
 
 
 @TIDAL_FLATS
@@ -96,9 +110,7 @@ def test_to_selafin(tmp_path, slf_in):
         with xr.open_dataset(slf_out, engine="selafin") as ds_slf2:
             assert ds_slf2.equals(ds_slf)
 
-    # Compare binary files
-    with open(slf_in, "rb") as in_slf1, open(slf_out, "rb") as in_slf2:
-        assert in_slf1.read() == in_slf2.read()
+    assert equals_two_binary_files(slf_in, slf_out)
 
 
 @TIDAL_FLATS
@@ -113,9 +125,7 @@ def test_to_selafin_eager_mode(tmp_path, slf_in):
         with xr.open_dataset(slf_out, engine="selafin") as ds_slf2:
             assert ds_slf2.equals(ds_slf)
 
-    # Compare binary files
-    with open(slf_in, "rb") as in_slf1, open(slf_out, "rb") as in_slf2:
-        assert in_slf1.read() == in_slf2.read()
+    assert equals_two_binary_files(slf_in, slf_out)
 
 
 @TIDAL_FLATS
@@ -174,12 +184,68 @@ def test_dim(slf_in):
         repr(ds)
 
 
+@DIMS
+@NODE_TIME
+def test_dask_mean_consistency(slf_in, dim_test):  # requires dask
+    def analyze_block(ds_block: xr.Dataset) -> xr.Dataset:
+        return ds_block.mean(dim=dim_test)
+
+    # --- Reference computation without Dask ---
+    ds_ref = xr.open_dataset(slf_in, engine="selafin", chunks=None)
+    ref = ds_ref.mean(dim=dim_test)
+
+    # --- Dask-based computation ---
+    with xr.open_dataset(slf_in, engine="selafin") as ds:
+        ds = ds.chunk({"time": -1, "node": 50})
+        result = xr.map_blocks(analyze_block, ds)
+        computed = result.compute()
+
+    # --- Structural checks ---
+    assert set(computed.data_vars) == set(ref.data_vars)
+    for var in ref.data_vars:
+        da_ref = ref[var]
+        da_comp = computed[var]
+        # shapes should match (node dim gone)
+        assert da_ref.shape == da_comp.shape, f"Shape mismatch for {var}"
+        # coordinate consistency
+        assert all(c in da_comp.coords for c in da_ref.coords), f"Missing coords in {var}"
+
+        # # This check won't work because local mean != global mean >> find another type of assertion
+        # np.testing.assert_allclose(
+        #     da_ref.values,
+        #     da_comp.values,
+        #     rtol=1e-6,
+        #     atol=1e-8,
+        #     err_msg=f"Mismatch in mean(node) for {var}"
+        # )
+
+
 @BUMP
 def test_eager_vs_lazy(slf_in):
-    with xr.load_dataset(slf_in, engine="selafin") as ds_eager:
+    with xr.load_dataset(slf_in, lazy_loading=False, engine="selafin") as ds_eager:
         z_levels_eager = ds_eager.Z.isel(time=0).drop_vars("time")
         dz_eager = z_levels_eager.diff(dim="plan")
-        with xr.open_dataset(slf_in, engine="selafin") as ds_lazy:
+        with xr.open_dataset(slf_in, lazy_loading=True, engine="selafin") as ds_lazy:
             z_levels_lazy = ds_lazy.Z.isel(time=0).drop_vars("time")
             dz_lazy = z_levels_lazy.diff(dim="plan")
             xr.testing.assert_allclose(dz_eager, dz_lazy, rtol=1e-3)
+
+
+@BUMP
+def test_get_dataset_as_2d(tmp_path, slf_in):
+    with xr.load_dataset(slf_in, engine="selafin") as ds:
+        # Bottom layer
+        FILENAME = "r3d_bump_extracted_bottom_layer.slf"
+        ref_path = Path('tests') / 'data' / FILENAME
+        out_path = tmp_path / FILENAME
+        ds_bottom_layer = ds.selafin.get_dataset_as_2d(plan=0)
+        ds_bottom_layer.selafin.write(out_path)
+        assert equals_two_binary_files(ref_path, out_path)
+
+        # Top layer
+        FILENAME = "r3d_bump_extracted_top_layer.slf"
+        ref_path = Path('tests') / 'data' / FILENAME
+        out_path = tmp_path / FILENAME
+        ds_top_layer = ds.selafin.get_dataset_as_2d(plan=4)
+        ds_top_layer.selafin.write(out_path)
+        assert equals_two_binary_files(ref_path, out_path)

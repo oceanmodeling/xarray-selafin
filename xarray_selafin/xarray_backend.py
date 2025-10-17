@@ -1,187 +1,61 @@
+"""
+Documentation on how to implement a new backend in xarray
+* https://docs.xarray.dev/en/latest/internals/how-to-add-new-backend.html
+* https://tutorial.xarray.dev/advanced/backends/2.Backend_with_Lazy_Loading.html
+"""
 import os
 from datetime import datetime
 from datetime import timedelta
-from operator import attrgetter
-
 import numpy as np
+from operator import attrgetter
+import threading
 import xarray as xr
-from xarray.backends import BackendArray
-from xarray.backends import BackendEntrypoint
+from xarray.backends import BackendArray, BackendEntrypoint
 from xarray.core import indexing
 
 from xarray_selafin import Serafin
 
 
+try:
+    import dask
+    DASK_AVAILABLE = True
+except ImportError:
+    DASK_AVAILABLE = False
+
+
 DEFAULT_DATE_START = (1900, 1, 1, 0, 0, 0)
+
+
+def range_from_key(k, n):
+    if isinstance(k, slice):
+        return range(*k.indices(n))
+    elif isinstance(k, int):
+        return range(k, k + 1)
+    else:
+        raise ValueError("index must be int or slice")
 
 
 def compute_duration_between_datetime(t0, time_serie):
     return (time_serie - t0).astype("timedelta64[s]").astype(float)
 
 
-def read_serafin(f, lang):
-    resin = Serafin.Read(f, lang)
+def read_serafin(filepath, lang):
+    resin = Serafin.Read(filepath, lang)
     resin.__enter__()
     resin.read_header()
     resin.get_time()
     return resin
 
 
-def write_serafin(fout, ds):
-    # Title
-    try:
-        title = ds.attrs["title"]
-    except KeyError:
-        title = "Converted with array-serafin"
-
-    slf_header = Serafin.SerafinHeader(title)
-
-    # File precision
-    try:
-        float_size = ds.attrs["float_size"]
-    except KeyError:
-        float_size = 4  # Default: single precision
-    if float_size == 4:
-        slf_header.to_single_precision()
-    elif float_size == 8:
-        slf_header.to_double_precision()
-    else:
-        raise NotImplementedError
-
-    try:
-        slf_header.endian = ds.attrs["endian"]
-    except KeyError:
-        pass  # Default: ">"
-
-    try:
-        slf_header.nb_frames = ds.time.size
-    except AttributeError:
-        slf_header.nb_frames = 0
-
-    try:
-        slf_header.date = ds.attrs["date_start"]
-    except KeyError:
-        # Retrieve starting date from first time
-        if slf_header.nb_frames == 0:
-            first_time = ds.time
-        else:
-            first_time = ds.time[0]
-        first_date_str = first_time.values.astype(str)  # "1900-01-01T00:00:00.000000000"
-        first_date_str = first_date_str.rstrip("0") + "0"  # "1900-01-01T00:00:00.0"
-        try:
-            date = datetime.strptime(first_date_str, "%Y-%m-%dT%H:%M:%S.%f")
-            slf_header.date = attrgetter("year", "month", "day", "hour", "minute", "second")(date)
-        except ValueError:
-            slf_header.date = DEFAULT_DATE_START
-
-    # Variables
-    try:
-        slf_header.language = ds.attrs["language"]
-    except KeyError:
-        slf_header.language = Serafin.LANG
-    for var in ds.data_vars:
-        try:
-            name, unit = ds.attrs["variables"][var]
-            slf_header.add_variable_str(var, name, unit)
-        except KeyError:
-            try:
-                slf_header.add_variable_from_ID(var)
-            except Serafin.SerafinRequestError:
-                slf_header.add_variable_str(var, var, "?")
-    slf_header.nb_var = len(slf_header.var_IDs)
-
-    if "plan" in ds.dims:  # 3D
-        is_2d = False
-        nplan = len(ds.plan)
-        slf_header.nb_nodes_per_elem = 6
-        slf_header.nb_elements = len(ds.attrs["ikle2"]) * (nplan - 1)
-    else:  # 2D
-        is_2d = True
-        nplan = 1  # just to do a multiplication
-        slf_header.nb_nodes_per_elem = ds.attrs["ikle2"].shape[1]
-        slf_header.nb_elements = len(ds.attrs["ikle2"])
-
-    slf_header.nb_nodes = ds.sizes["node"] * nplan
-    slf_header.nb_nodes_2d = ds.sizes["node"]
-
-    x = ds.coords["x"].values
-    y = ds.coords["y"].values
-    if not is_2d:
-        x = np.tile(x, nplan)
-        y = np.tile(y, nplan)
-    slf_header.x = x
-    slf_header.y = y
-    slf_header.mesh_origin = (0, 0)  # Should be integers
-    slf_header.x_stored = x - slf_header.mesh_origin[0]
-    slf_header.y_stored = y - slf_header.mesh_origin[1]
-    slf_header.ikle_2d = ds.attrs["ikle2"]
-    if is_2d:
-        slf_header.ikle = slf_header.ikle_2d.flatten()
-    else:
-        try:
-            slf_header.ikle = ds.attrs["ikle3"]
-        except KeyError:
-            # Rebuild IKLE from 2D
-            slf_header.ikle = slf_header.compute_ikle(len(ds.plan), slf_header.nb_nodes_per_elem)
-
-    try:
-        slf_header.ipobo = ds.attrs["ipobo"]
-    except KeyError:
-        # Rebuild IPOBO
-        slf_header.build_ipobo()
-
-    if "plan" in ds.dims:  # 3D
-        slf_header.nb_planes = len(ds.plan)
-        slf_header.is_2d = False
-        shape = (slf_header.nb_var, slf_header.nb_planes, slf_header.nb_nodes_2d)
-    else:  # 2D (converted if required)
-        # if ds.attrs["type"] == "3D":
-        #     slf_header.is_2d = False  # to enable conversion from 3D
-        #     slf_header = slf_header.copy_as_2d()
-        slf_header.is_2d = True
-        shape = (slf_header.nb_var, slf_header.nb_nodes_2d)
-
-    try:
-        slf_header.params = ds.attrs["params"]
-    except KeyError:
-        slf_header.build_params()
-
-    with Serafin.Write(fout, slf_header.language, overwrite=True) as resout:
-        resout.write_header(slf_header)
-
-        t0 = np.datetime64(datetime(*slf_header.date))
-
-        try:
-            time_serie = compute_duration_between_datetime(t0, ds.time.values)
-        except AttributeError:
-            return  # no time (header only is written)
-        if isinstance(time_serie, float):
-            time_serie = [time_serie]
-        for it, t_ in enumerate(time_serie):
-            temp = np.empty(shape, dtype=slf_header.np_float_type)
-            for iv, var in enumerate(slf_header.var_IDs):
-                if slf_header.nb_frames == 1:
-                    temp[iv] = ds[var].values
-                else:
-                    temp[iv] = ds.isel(time=it)[var].values
-                if slf_header.nb_planes > 1:
-                    temp[iv] = np.reshape(
-                        np.ravel(temp[iv]), (slf_header.nb_planes, slf_header.nb_nodes_2d)
-                    )
-            resout.write_entire_frame(
-                slf_header,
-                t_,
-                np.reshape(temp, (slf_header.nb_var, slf_header.nb_nodes)),
-            )
-
-
 class SelafinLazyArray(BackendArray):
-    # not implemented yet: too slow
-    def __init__(self, slf_reader, var, dtype, shape):
-        self.slf_reader = slf_reader
-        self.var = var
-        self.dtype = dtype
+
+    def __init__(self, filename_or_obj, shape, dtype, lock, var):
+        self.filename_or_obj = filename_or_obj
         self.shape = shape
+        self.dtype = dtype
+        self.lock = lock
+        # Below are other backend specific keyword arguments
+        self.var = var
 
     def __getitem__(self, key):
         return indexing.explicit_indexing_adapter(
@@ -191,70 +65,76 @@ class SelafinLazyArray(BackendArray):
             self._raw_indexing_method,
         )
 
-    def _raw_indexing_method(self, key):
-        ndim = len(self.shape)
+    def _raw_indexing_method_unlocked(self, key):
+        ndim = self.ndim  # = len(self.shape)
         if ndim not in (2, 3):
-            raise NotImplementedError(f"Unsupported SELAFIN shape {self.shape}")
+            raise NotImplementedError(f"Unsupported SELAFIN shape {ndim}")
+        assert len(key) == len(self.shape)
 
         if not isinstance(key, tuple):
             raise NotImplementedError("SELAFIN access must use tuple indexing")
 
-        # --- Parse keys
-        if ndim == 3:
-            # 3D file
-            if len(key) == 3:
-                time_key, plan_key, node_key = key
-            elif len(key) == 2:
-                time_key, node_key = key
-                plan_key = slice(None)
-            else:
-                raise NotImplementedError("Only (time, plan, node) or (time, node) supported for 3D files")
-        else:
-            # 2D file
-            if len(key) == 2:
-                time_key, node_key = key
-            elif len(key) == 1:
-                time_key = key[0]
-                node_key = slice(None)
-            else:
-                raise NotImplementedError("Only (time, node) supported for 2D files")
+        nb_nodes_2d = self.shape[-1]  # last dimension
 
-        # --- helper
-        def _range_from_key(k, n):
-            if isinstance(k, slice):
-                return range(*k.indices(n))
-            elif isinstance(k, int):
-                return [k]
-            else:
-                raise ValueError("index must be int or slice")
+        # Parse keys
+        if ndim == 3:  # (3D)
+            time_key, plan_key, node_key = key
+        else:  # ndim = 2 (2D)
+            time_key, node_key = key
+            plan_key = None
 
-        time_indices = _range_from_key(time_key, self.shape[0])
+        # Build indices
+        time_range = range_from_key(time_key, self.shape[0])
+        if ndim == 3:  # (3D)
+            nb_planes = self.shape[1]
+            plan_range = range_from_key(plan_key, nb_planes)
+            node_range = range_from_key(node_key, nb_nodes_2d)
+            ds_shape = (len(time_range), len(plan_range), len(node_range))
+        else:  # ndim = 2 (2D)
+            nb_planes = 1
+            node_range = range_from_key(node_key, nb_nodes_2d)
+            ds_shape = (len(time_range), len(node_range))
+            plan_range = None
 
-        if ndim == 3:
-            plan_indices = _range_from_key(plan_key, self.shape[1])
-            node_indices = _range_from_key(node_key, self.shape[2])
-            data_shape = (len(time_indices), len(plan_indices), len(node_indices))
-        else:
-            node_indices = _range_from_key(node_key, self.shape[1])
-            data_shape = (len(time_indices), len(node_indices))
+        res_array = np.empty(ds_shape, dtype=self.dtype)
 
-        data = np.empty(data_shape, dtype=self.dtype)
-
-        for it, t in enumerate(time_indices):
-            temp = self.slf_reader.read_var_in_frame(t, self.var)
+        for ds_index_time, time_index in enumerate(time_range):
+            flatten_values = self.filename_or_obj.read_var_in_frame(time_index, self.var)  # flatten np.ndarray
             if ndim == 3:
-                temp = np.reshape(temp, (self.shape[1], self.shape[2]))  # (nplan, nnode)
-                values = temp[np.ix_(plan_indices, node_indices)]
-                data[it, :, :] = values
+                all_values = flatten_values.reshape((nb_planes, nb_nodes_2d))
+                if plan_range == slice(None, None, None) and node_key == slice(None, None, None):  # avoid a subset to speedup
+                    res_array[ds_index_time, :, :] = all_values
+                else:
+                    res_array[ds_index_time, :, :] = all_values[np.ix_(plan_range, node_range)]
             else:
-                temp = np.asarray(temp)  # (nnode,)
-                values = temp[node_indices]
-                data[it, :] = values
+                if node_key == slice(None, None, None):  # avoid a subset to speedup
+                    res_array[ds_index_time, :] = flatten_values
+                else:
+                    res_array[ds_index_time, :] = flatten_values[node_range]
 
-        return data.squeeze()
+        # Remove some dimensions if it was selected by integer
+        squeeze_dims = []
+        if isinstance(time_key, int):
+            squeeze_dims.append(0)
+        if isinstance(plan_key, int):
+            squeeze_dims.append(1)
+        if isinstance(node_key, int):
+            squeeze_dims.append(-1)
+        if squeeze_dims:
+            res_array = np.squeeze(res_array, axis=tuple(squeeze_dims))
+
+        return res_array
+
+    def _raw_indexing_method(self, key):
+        if self.lock is None:
+            return self._raw_indexing_method_unlocked(key)
+        else:
+            with self.lock:
+                return self._raw_indexing_method_unlocked(key)
 
 
 class SelafinBackendEntrypoint(BackendEntrypoint):
+
     def open_dataset(
         self,
         filename_or_obj,
@@ -262,8 +142,10 @@ class SelafinBackendEntrypoint(BackendEntrypoint):
         drop_variables=None,
         decode_times=True,
         # Below are custom arguments
+        disable_lock=False,
         lazy_loading=True,
         lang=Serafin.LANG,
+        # `chunks` and `cache` DO NOT go here, they are handled by xarray
     ):
         # Initialize SELAFIN reader
         slf = read_serafin(filename_or_obj, lang)
@@ -291,14 +173,28 @@ class SelafinBackendEntrypoint(BackendEntrypoint):
             shape = (len(times), nplan, npoin2)
             dims = ["time", "plan", "node"]
 
+        if disable_lock:
+            file_lock = None
+        else:
+            if DASK_AVAILABLE:
+                file_lock = dask.utils.SerializableLock()
+            else:
+                file_lock = threading.Lock()
+
         for var in vars:
             if lazy_loading:
-                lazy_array = SelafinLazyArray(slf, var, dtype, shape)
+                lazy_array = SelafinLazyArray(
+                    filename_or_obj=slf,
+                    shape=shape,
+                    dtype=dtype,
+                    lock=file_lock,
+                    var=var,
+                )
                 data = indexing.LazilyIndexedArray(lazy_array)
                 data_vars[var] = xr.Variable(dims=dims, data=data)
             else:
                 data = np.empty(shape, dtype=dtype)
-                for time_index, t in enumerate(times):
+                for time_index, _ in enumerate(times):
                     values = slf.read_var_in_frame(time_index, var)
                     if is_2d:
                         data[time_index, :] = values
@@ -348,19 +244,174 @@ class SelafinBackendEntrypoint(BackendEntrypoint):
         return ext.lower() in {".slf"}
 
     description = "A SELAFIN file format backend for Xarray"
-    url = "https://www.example.com/selafin_backend_documentation"
+    url = "https://github.com/oceanmodeling/xarray-selafin/"
 
 
 @xr.register_dataset_accessor("selafin")
 class SelafinAccessor:
+
     def __init__(self, xarray_obj):
-        self._obj = xarray_obj
+        self._ds = xarray_obj
+        self._header = None
+
+    def get_dataset_as_2d(self, plan):
+        """Generate a copy of the current DataSet in a 2D format"""
+        # Check input DataSet
+        if "plan" not in self._ds.dims:
+            raise RuntimeError("get_dataset_as_2d requires a 3D DataSet")
+        assert 0 <= plan <= self._ds.sizes.get("plan") - 1
+
+        # Generate a shallow copy
+        ds_out = self._ds.copy(deep=False).isel(plan=plan)
+
+        nb_nodes_2d = self._ds.sizes.get("node")
+
+        # Remove or adapt some attributes (if present)
+        if "ipobo" in self._ds.attrs:
+            ds_out.attrs["ipobo"] = self._ds.attrs["ipobo"][:nb_nodes_2d]
+        ds_out.attrs.pop("ikle3", None)
+
+        return ds_out
+
+    def _build_header(self):
+        """Build a SerafinHeader corresponding to DataSet"""
+        ds = self._ds
+
+        # Title
+        title = ds.attrs.get("title", "Converted with array-serafin")
+        header = Serafin.SerafinHeader(title)
+
+        # File precision
+        float_size = ds.attrs.get("float_size", 4)  # Default: single precision
+        if float_size == 4:
+            header.to_single_precision()
+        elif float_size == 8:
+            header.to_double_precision()
+        else:
+            raise NotImplementedError
+
+        header.endian = ds.attrs.get("endian", ">")  # Default: ">"
+
+        header.nb_frames = ds.sizes.get("time", 0)
+
+        try:
+            header.date = ds.attrs["date_start"]
+        except KeyError:
+            # Retrieve starting date from first time
+            if header.nb_frames == 0:
+                first_time = ds.time
+            else:
+                first_time = ds.time[0]
+            first_date_str = first_time.values.astype(str)  # "1900-01-01T00:00:00.000000000"
+            first_date_str = first_date_str.rstrip("0") + "0"  # "1900-01-01T00:00:00.0"
+            try:
+                date = datetime.strptime(first_date_str, "%Y-%m-%dT%H:%M:%S.%f")
+                header.date = attrgetter("year", "month", "day", "hour", "minute", "second")(date)
+            except ValueError:
+                header.date = DEFAULT_DATE_START
+
+        # Variables
+        header.language = ds.attrs.get("language", Serafin.LANG)
+        for var in ds.data_vars:
+            try:
+                name, unit = ds.attrs["variables"][var]
+                header.add_variable_str(var, name, unit)
+            except KeyError:
+                try:
+                    header.add_variable_from_ID(var)
+                except Serafin.SerafinRequestError:
+                    header.add_variable_str(var, var, "?")
+        header.nb_var = len(header.var_IDs)
+
+        if "plan" in ds.dims:  # 3D
+            header.is_2d = False
+            nplan = len(ds.plan)
+            header.nb_nodes_per_elem = 6
+            header.nb_elements = len(ds.attrs["ikle2"]) * (nplan - 1)
+            header.nb_planes = nplan
+        else:  # 2D
+            header.is_2d = True
+            nplan = 1  # just to do a multiplication below
+            header.nb_nodes_per_elem = ds.attrs["ikle2"].shape[1]
+            header.nb_elements = len(ds.attrs["ikle2"])
+            header.nb_planes = 0  # convention in Selafin for 2D files
+
+        header.nb_nodes_2d = ds.sizes["node"]
+        header.nb_nodes = header.nb_nodes_2d * nplan
+
+        x = ds.coords["x"].values
+        y = ds.coords["y"].values
+        if not header.is_2d:
+            x = np.tile(x, nplan)
+            y = np.tile(y, nplan)
+        header.x = x
+        header.y = y
+        header.mesh_origin = (0, 0)  # Should be integers
+        header.x_stored = x - header.mesh_origin[0]
+        header.y_stored = y - header.mesh_origin[1]
+        header.ikle_2d = ds.attrs["ikle2"]
+        if header.is_2d:
+            header.ikle = header.ikle_2d.flatten()
+        else:
+            try:
+                header.ikle = ds.attrs["ikle3"]
+            except KeyError:
+                # Rebuild IKLE from 2D
+                header.ikle = header.compute_ikle(nplan, header.nb_nodes_per_elem)
+
+        try:
+            header.ipobo = ds.attrs["ipobo"]
+        except KeyError:
+            # Rebuild IPOBO
+            header.build_ipobo()
+
+        try:
+            header.params = ds.attrs["params"]
+        except KeyError:
+            header.build_params()
+
+        self._header = header
+
+    def _write_all(self, filepath):
+        """Writes header and all data frames into output file"""
+        header = self._header
+
+        with Serafin.Write(filepath, header.language, overwrite=True) as resout:
+            resout.write_header(header)
+
+            t0 = np.datetime64(datetime(*header.date))
+
+            try:
+                time_serie = compute_duration_between_datetime(t0, self._ds.time.values)
+            except AttributeError:
+                return  # no time (header only is written)
+            if isinstance(time_serie, float):
+                time_serie = [time_serie]
+
+            shape = (header.nb_var, header.nb_nodes)
+            values = np.empty(shape, dtype=header.np_float_type)
+            for time_index, time in enumerate(time_serie):
+                for var_index, var in enumerate(header.var_IDs):
+                    if header.nb_frames in (0, 1):
+                        array = self._ds[var].values
+                    else:
+                        array = self._ds.isel(time=time_index)[var].values
+                    if header.is_2d:
+                        values[var_index, :] = array
+                    else:
+                        values[var_index, :] = array.ravel()
+
+                resout.write_entire_frame(
+                    header,
+                    time,
+                    values,
+                )
 
     def write(self, filepath, **kwargs):
         """
         Write data from an Xarray dataset to a SELAFIN file.
         Parameters:
-        - filename: String with the path to the output SELAFIN file.
+        - filepath: String with the path to the output SELAFIN file.
         """
-        ds = self._obj
-        write_serafin(filepath, ds)
+        self._build_header()
+        self._write_all(filepath)
