@@ -1055,9 +1055,9 @@ pytest==9.0.3 ; python_version >= "3.11" \
 python-dateutil==2.9.0.post0 ; python_version >= "3.11" \
     --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
     --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
-python-serafin==0.1.0 ; python_version >= "3.11" \
-    --hash=sha256:2afd42ac11bded0182c0e90be7c72c3cf27ed48a45cb712f3b130df78e7edbc3 \
-    --hash=sha256:621a85a99a5352d9335369be8903486b4fb2565559d30707446cb35d5b1b67c8
+python-serafin==0.2.0 ; python_version >= "3.11" \
+    --hash=sha256:57019abee61abca998afdedd9121b7698bcbc9231e44b0fb171375e898cf28b1 \
+    --hash=sha256:a81332e54814dcec35c47e51dc3734a1db7bee24e1ca02c61548bbd1602112fd
 pyviz-comms==3.0.6 ; python_version >= "3.11" \
     --hash=sha256:4eba6238cd4a7f4add2d11879ce55411785b7d38a7c5dba42c7a0826ca53e6c2 \
     --hash=sha256:73d66b620390d97959b2c4d8a2c0778d41fe20581be4717f01e46b8fae8c5695

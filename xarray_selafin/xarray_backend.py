@@ -11,16 +11,15 @@ from operator import attrgetter
 
 import numpy as np
 import xarray as xr
-from serafin import Read
 from serafin import SerafinHeader
+from serafin import SerafinReader
 from serafin import SerafinRequestError
-from serafin import Write
+from serafin import SerafinWriter
 from serafin.serafin import LANG
 from serafin.serafin import SLF_EIT
 from xarray.backends import BackendArray
 from xarray.backends import BackendEntrypoint
 from xarray.core import indexing
-
 
 try:
     import dask
@@ -47,7 +46,7 @@ def compute_duration_between_datetime(t0, time_serie):
 
 
 def read_serafin(filepath, lang):
-    resin = Read(filepath, lang)
+    resin = SerafinReader(filepath, lang)
     resin.__enter__()
     resin.read_header()
     resin.get_time()
@@ -165,7 +164,7 @@ class SelafinBackendEntrypoint(BackendEntrypoint):
         nplan = slf.header.nb_planes
         x = slf.header.x
         y = slf.header.y
-        vars = slf.header.var_IDs
+        vars = slf.header.var_ids
 
         # Create data variables
         data_vars = {}
@@ -322,10 +321,10 @@ class SelafinAccessor:
                 header.add_variable_str(var, name, unit)
             except KeyError:
                 try:
-                    header.add_variable_from_ID(var)
+                    header.add_variable_from_id(var)
                 except SerafinRequestError:
                     header.add_variable_str(var, var, "?")
-        header.nb_var = len(header.var_IDs)
+        header.nb_var = len(header.var_ids)
 
         if "plan" in ds.dims:  # 3D
             header.is_2d = False
@@ -380,7 +379,7 @@ class SelafinAccessor:
         """Writes header and all data frames into output file"""
         header = self._header
 
-        with Write(filepath, header.language, overwrite=True) as resout:
+        with SerafinWriter(filepath, header.language, overwrite=True) as resout:
             resout.write_header(header)
 
             t0 = np.datetime64(datetime(*header.date))
@@ -395,7 +394,7 @@ class SelafinAccessor:
             shape = (header.nb_var, header.nb_nodes)
             values = np.empty(shape, dtype=header.np_float_type)
             for time_index, time in enumerate(time_serie):
-                for var_index, var in enumerate(header.var_IDs):
+                for var_index, var in enumerate(header.var_ids):
                     if header.nb_frames in (0, 1):
                         array = self._ds[var].values
                     else:

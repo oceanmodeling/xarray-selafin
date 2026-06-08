@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "xarray-selafin"
-version = "0.2.2"
+version = "0.2.3"
 description = ""
 authors = ["tomsail <saillour.thomas@gmail.com>", "lucduron <l.duron@cnr.tm.fr>"]
 readme = "README.md"
@@ -14,7 +14,7 @@ include = [
 python = ">=3.11"
 numpy = "*"
 xarray = "*"
-python-serafin = "0.1.0"
+python-serafin = ">=0.2,<0.3"
 
 [tool.poetry.plugins."xarray.backends"]
 selafin = "xarray_selafin.xarray_backend:SelafinBackendEntrypoint"
@@ -34,5 +34,8 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]
-target-version = ['py37']
+target-version = ['py311']
 line-length = 107
+
+[tool.ruff.isort]
+force-single-line = true

@@ -2268,13 +2268,13 @@ six = ">=1.5"
 
 [[package]]
 name = "python-serafin"
-version = "0.1.0"
+version = "0.2.0"
 description = "Read and write Serafin (TELEMAC) binary files"
 optional = false
 python-versions = ">=3.10"
 files = [
-    {file = "python_serafin-0.1.0-py3-none-any.whl", hash = "sha256:2afd42ac11bded0182c0e90be7c72c3cf27ed48a45cb712f3b130df78e7edbc3"},
-    {file = "python_serafin-0.1.0.tar.gz", hash = "sha256:621a85a99a5352d9335369be8903486b4fb2565559d30707446cb35d5b1b67c8"},
+    {file = "python_serafin-0.2.0-py3-none-any.whl", hash = "sha256:57019abee61abca998afdedd9121b7698bcbc9231e44b0fb171375e898cf28b1"},
+    {file = "python_serafin-0.2.0.tar.gz", hash = "sha256:a81332e54814dcec35c47e51dc3734a1db7bee24e1ca02c61548bbd1602112fd"},
 ]
 
 [package.dependencies]
@@ -2282,7 +2282,7 @@ numpy = ">=1.24"
 
 [package.extras]
 dev = ["pre-commit", "pytest (>=8)", "pytest-cov", "ruff"]
-docs = ["furo (>=2024.8)", "myst-parser[linkify] (>=3.0)", "sphinx (>=7.3)", "sphinx-autodoc-typehints (>=2.0)", "sphinx-copybutton (>=0.5)", "sphinx-design (>=0.6)"]
+docs = ["furo (>=2024.8)", "myst-parser[linkify] (>=3.0)", "sphinx (>=7.3)", "sphinx-autodoc-typehints (>=2.0)", "sphinx-copybutton (>=0.5)", "sphinx-design (>=0.6)", "sphinx-llm (>=0.4)"]
 
 [[package]]
 name = "pyviz-comms"
@@ -2956,4 +2956,4 @@ type = ["pytest-mypy (>=1.0.1)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11"
-content-hash = "a441b28d6f466d194a3a308508ee0c0d08b6017b4d84ded076b43bf7f6b9bbfa"
+content-hash = "3227838bb337d832203586e4f48c817d796086dacb05e656dac9717313647302"
