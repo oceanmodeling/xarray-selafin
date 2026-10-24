@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "xarray-selafin"
-version = "0.2.3"
+version = "0.2.4"
 description = ""
 authors = ["tomsail <saillour.thomas@gmail.com>", "lucduron <l.duron@cnr.tm.fr>"]
 readme = "README.md"
@@ -21,6 +21,7 @@ selafin = "xarray_selafin.xarray_backend:SelafinBackendEntrypoint"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
+pillow = ">=13.0.0"  # pin transitive dep above all open CVEs (Dependabot)
 scipy = "*"
 xarray = {version = "*",  extras = ["io"]}
 dask = "*"
