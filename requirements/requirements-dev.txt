@@ -23,9 +23,9 @@ bokeh==3.9.0 ; python_version >= "3.11" \
 cattrs==26.1.0 ; python_version >= "3.11" \
     --hash=sha256:d1e0804c42639494d469d08d4f26d6b9de9b8ab26b446db7b5f8c2e97f7c3096 \
     --hash=sha256:fa239e0f0ec0715ba34852ce813986dfed1e12117e209b816ab87401271cdd40
-certifi==2026.5.20 ; python_version >= "3.11" \
-    --hash=sha256:3c52e209ba0a4ad7aebe60436a4ab349c39e1e602e8c134221e546902ad25897 \
-    --hash=sha256:69dea482ab64caa7b9f6aba1c6bf48bb6a5448d1c0f1b17ab42ad8c763a5344d
+certifi==2026.10.23 ; python_version >= "3.11" \
+    --hash=sha256:a9895e6e2758b371e0545e321a3a8fd1fcfd9829ada8824a936dfb16aaaf36cd \
+    --hash=sha256:e9b54de76e530bb6cf0ccd036787103acb58fd42ba930ea8bf948ddbaa2f61d1
 cftime==1.6.5 ; python_version >= "3.11" \
     --hash=sha256:12d95c6af852114a13301c5a61e41afdbd1542e72939c1083796f8418b9b8b0e \
     --hash=sha256:179681b023349a2fe277ceccc89d4fc52c0dd105cb59b7187b5bc5d442875133 \
