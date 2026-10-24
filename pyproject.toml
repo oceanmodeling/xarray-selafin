@@ -20,8 +20,6 @@ python-serafin = ">=0.2,<0.3"
 selafin = "xarray_selafin.xarray_backend:SelafinBackendEntrypoint"
 
 [tool.poetry.group.dev.dependencies]
-certifi = ">=2026.10.19"
-urllib3 = ">=2.8.0"
 pytest = "*"
 pillow = ">=13.0.0"  # pin transitive dep above all open CVEs (Dependabot)
 scipy = "*"
