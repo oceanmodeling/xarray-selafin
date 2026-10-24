@@ -21,6 +21,7 @@ selafin = "xarray_selafin.xarray_backend:SelafinBackendEntrypoint"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
+pillow = ">=13.0.0"  # pin transitive dep above all open CVEs (Dependabot)
 scipy = "*"
 xarray = {version = "*",  extras = ["io"]}
 dask = "*"
