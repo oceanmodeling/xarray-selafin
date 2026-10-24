@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "xarray-selafin"
-version = "0.2.4"
+version = "0.2.5"
 description = ""
 authors = ["tomsail <saillour.thomas@gmail.com>", "lucduron <l.duron@cnr.tm.fr>"]
 readme = "README.md"
