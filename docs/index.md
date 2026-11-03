@@ -2,6 +2,7 @@
 
 [![Available on pypi](https://img.shields.io/pypi/v/xarray-selafin.svg)](https://pypi.python.org/pypi/xarray-selafin/)
 [![CI](https://github.com/oceanmodeling/xarray-selafin/actions/workflows/run_tests.yml/badge.svg)](https://github.com/oceanmodeling/xarray-selafin/actions/workflows/run_tests.yml)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/oceanmodeling/xarray-selafin/blob/main/workshop/01_getting_started_colab.ipynb)
 
 **An xarray backend for SELAFIN/SERAFIN file formats used by TELEMAC and other hydraulic solvers.**
 

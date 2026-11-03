@@ -93,27 +93,104 @@ Each key **must match** a variable name in the dataset. Without this dict, varia
 
 Built-in TELEMAC variable definitions (French and English):
 
-### 2D variables (partial list)
+### 2D variables
 
-| ID | English name | Unit |
-|----|-------------|------|
-| `U` | VELOCITY U | M/S |
-| `V` | VELOCITY V | M/S |
-| `H` | WATER DEPTH | M |
-| `S` | FREE SURFACE | M |
-| `B` | BOTTOM | M |
-| `M` | SCALAR VELOCITY | M/S |
-| `F` | FROUDE NUMBER | -- |
-| `TAU` | BOTTOM SHEAR STRESS | PASCAL |
+| ID | French name | English name | Unit |
+|----|-------------|--------------|------|
+| `U` | VITESSE U | VELOCITY U | M/S |
+| `V` | VITESSE V | VELOCITY V | M/S |
+| `C` | CELERITE | CELERITY | M/S |
+| `H` | HAUTEUR D'EAU | WATER DEPTH | M |
+| `S` | SURFACE LIBRE | FREE SURFACE | M |
+| `B` | FOND | BOTTOM | M |
+| `F` | FROUDE | FROUDE NUMBER | |
+| `Q` | DEBIT SCALAIRE | SCALAR FLOWRATE | M2/S |
+| `Q` | DEBIT Q | FLOWRATE Q | M2/S |
+| `I` | DEBIT SUIVANT X | FLOWRATE ALONG X | M2/S |
+| `I` | DEBIT QX | FLOWRATE QX | M2/S |
+| `J` | DEBIT SUIVANT Y | FLOWRATE ALONG Y | M2/S |
+| `J` | DEBIT QY | FLOWRATE QX | M2/S |
+| `E` | DISSIPATION | DISSIPATION | WATT/KG |
+| `D` | VISCOSITE TURB. | VISCOSITY | M2/S |
+| `K` | ENERGIE TURBUL. | TURBULENT ENERG. | JOULE/KG |
+| `P` | PRESSION ATMOS. | AIR PRESSURE | PASCAL |
+| `M` | VITESSE SCALAIRE | SCALAR VELOCITY | M/S |
+| `X` | VENT X | WIND ALONG X | M/S |
+| `Y` | VENT Y | WIND ALONG Y | M/S |
+| `W` | FROTTEMENT | BOTTOM FRICTION | |
+| `W` | COEFT FROTTEMENT | FRICTION COEFT | |
+| `A` | DERIVE EN X | DRIFT ALONG X | M |
+| `G` | DERIVE EN Y | DRIFT ALONG Y | M |
+| `L` | NBRE DE COURANT | COURANT NUMBER | |
+| `MAXZ` | COTE MAXIMUM | HIGH WATER MARK | M |
+| `TMXZ` | TEMPS COTE MAXI | HIGH WATER TIME | S |
+| `MAXV` | VITESSE MAXIMUM | HIGHEST VELOCITY | M/S |
+| `TMXV` | T VITESSE MAXI | TIME OF HIGH VEL | S |
+| `US` | VITESSE DE FROT. | FRICTION VEL. | M/S |
+| `US` | VITESSE DE FROT | FRICTION VELOCIT | M/S |
+| `TAU` | CONTRAINTE | BED SHEAR STRESS | PASCAL |
+| `TAU` | FROTTEMENT TOB | BED SHEAR STRESS | PASCAL |
+| `DMAX` | DIAMETRE | DIAMETER | MM |
+| `WH` | HAUTEUR HM0 | WAVE HEIGHT HM0 | M |
+| `PPT` | PERIODE PIC TPR5 | PEAK PERIOD TPR5 | S |
+| `RB` | FOND RIGIDE | RIGID BED | M |
+| `THETAW` | DIRECTION MOY | MEAN DIRECTION | DEG |
+| `QS` | DEBIT SOLIDE | SOLID DISCH | M2/S |
+| `QSX` | DEBIT SOLIDE X | SOLID DISCH X | M2/S |
+| `QSY` | DEBIT SOLIDE Y | SOLID DISCH Y | M2/S |
+| `QS` | DEBIT SOLIDE | SOLID DISCHARGE | M2/S |
+| `QSX` | DEBIT SOL EN X | SOLID DIS IN X | M2/S |
+| `QSY` | DEBIT SOL EN Y | SOLID DIS IN Y | M2/S |
+| `EV` | EVOLUTION | EVOLUTION | M |
+| `EV` | EVOLUTION FOND | BED EVOLUTION | M |
+| `KS` | RUGOSITE TOTALE. | RUGOSITE TOTALE | M |
+| `KS` | RUGOSITE TOTALE | RUGOSITE TOTALE | M |
+| `MU` | CORR FROTT PEAU | FROT. PEAU MU | |
+| `D50` | DIAMETRE MOYEN | MEAN DIAMETER | M |
+| `UWB` | VITESSE FOND | BOTTOM VELOCITY | M/S |
+| `QSBL` | QS CHARRIAGE | QS BEDLOAD | M2/S |
+| `QSBLX` | QS CHARRIAGE X | QS BEDLOAD X | M2/S |
+| `QSBLY` | QS CHARRIAGE Y | QS BEDLOAD Y | M2/S |
+| `QSSUSP` | QS SUSPENSION | QS SUSPENSION | M2/S |
+| `QSSUSPX` | QS SUSPENSION X | QS SUSPENSION X | M2/S |
+| `QSSUSPY` | QS SUSPENSION Y | QS SUSPENSION Y | M2/S |
+| `HD` | EPAISSEUR DU LIT | BED THICKNESS | M |
+| `EF` | FLUX D'EROSION | EROSION FLUX | KG/M2/S |
+| `DF` | FLUX DE DEPOT | DEPOSITION FLUX | KG/M2/S |
+| `FROTP` | FROT. PEAU | FROT. PEAU | PASCAL |
 
-### 3D variables (partial list)
+Note: some IDs appear multiple times with different label variants, as
+TELEMAC has used different names for the same variable across versions.
 
-| ID | English name | Unit |
-|----|-------------|------|
-| `Z` | ELEVATION Z | M |
-| `U` | VELOCITY U | M/S |
-| `V` | VELOCITY V | M/S |
-| `W` | VELOCITY W | M/S |
-| `NUX` | NUX FOR VELOCITY | M2/S |
+### 3D variables
 
-Full tables: `xarray_selafin/data/Serafin_var2D.csv` and `Serafin_var3D.csv`.
+| ID | French name | English name | Unit |
+|----|-------------|--------------|------|
+| `Z` | COTE Z | ELEVATION Z | M |
+| `U` | VITESSE U | VELOCITY U | M/S |
+| `V` | VITESSE V | VELOCITY V | M/S |
+| `W` | VITESSE W | VELOCITY W | M/S |
+| `NUX` | NUX POUR VITESSE | NUX FOR VELOCITY | M2/S |
+| `NUY` | NUY POUR VITESSE | NUY FOR VELOCITY | M2/S |
+| `NUZ` | NUZ POUR VITESSE | NUZ FOR VELOCITY | M2/S |
+| `K` | ENERGIE TURBULEN | TURBULENT ENERGY | JOULE/KG |
+| `EPS` | DISSIPATION | DISSIPATION | WATT/KG |
+| `RI` | NB DE RICHARDSON | RICHARDSON NUMB | |
+| `RHO` | DENSITE RELATIVE | RELATIVE DENSITY | |
+| `DP` | PRESSION DYNAMIQ | DYNAMIC PRESSURE | PA |
+| `PH` | PRESSION HYDROST | HYDROSTATIC PRES | PA |
+| `UCONV` | U CONVECTION | U ADVECTION | M/S |
+| `VCONV` | V CONVECTION | V ADVECTION | M/S |
+| `WCONV` | W CONVECTION | W ADVECTION | M/S |
+| `DM1` | DM1 | DM1 | |
+| `DHHN` | DHHN | DHHN | M |
+| `UCONVC` | UCONVC | UCONVC | M/S |
+| `VCONVC` | VCONVC | VCONVC | M/S |
+| `UD` | UD | UD | M/S |
+| `VD` | VD | VD | M/S |
+| `WD` | WD | WD | M/S |
+| `M` | VITESSE SCALAIRE | SCALAR VELOCITY | M/S |
+| `NU` | NU POUR VITESSE | NU FOR VELOCITY | M2/S |
+
+Source tables: `Serafin_var2D.csv` and `Serafin_var3D.csv`, shipped in the
+`data/` folder of the underlying [`serafin`](https://pypi.org/project/serafin/) package.

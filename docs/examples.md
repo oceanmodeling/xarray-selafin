@@ -1,5 +1,22 @@
 # Concrete examples with holoviews
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/oceanmodeling/xarray-selafin/blob/main/workshop/01_getting_started_colab.ipynb)
+
+The workshop notebooks can be run interactively in your browser via Google Colab, no installation required.
+
+| Notebook | Colab |
+|---|---|
+| 01 — Getting started | [open](https://colab.research.google.com/github/oceanmodeling/xarray-selafin/blob/main/workshop/01_getting_started_colab.ipynb) |
+| 02 — Advanced: ERA5 atmospheric forcing | [open](https://colab.research.google.com/github/oceanmodeling/xarray-selafin/blob/main/workshop/02_advanced.ipynb) |
+
+!!! note
+    Notebook 01 has a dedicated **Colab version** (`01_getting_started_colab.ipynb`).
+    Colab does not support kernel-backed widgets, so interactive sliders (e.g. along
+    `time`) are replaced by single frames (`isel(time=0)`) there, while the local
+    version keeps fully interactive plots. The Colab version starts with a bootstrap
+    cell that installs the dependencies (`pip install xarray-selafin ...`), downloads
+    the sample data, and calls `output.enable_custom_widget_manager()` once.
+
 ## Plotting SELAFIN data
 
 The unstructured triangular mesh is stored in `ds.attrs["ikle2"]`. We use `holoviews.TriMesh` to render filled triangulations directly:
