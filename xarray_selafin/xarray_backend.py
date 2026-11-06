@@ -262,7 +262,9 @@ class SelafinAccessor:
         # Check input DataSet
         if "plan" not in self._ds.dims:
             raise RuntimeError("get_dataset_as_2d requires a 3D DataSet")
-        assert 0 <= plan <= self._ds.sizes.get("plan") - 1
+        nb_planes = self._ds.sizes["plan"]
+        if not -nb_planes <= plan < nb_planes:
+            raise IndexError(f"plan {plan} is out of range [-{nb_planes}, {nb_planes - 1}]")
 
         # Generate a shallow copy
         ds_out = self._ds.copy(deep=False).isel(plan=plan)
