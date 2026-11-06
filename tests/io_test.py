@@ -1,6 +1,7 @@
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
 import pytest
 import xarray as xr
 from scipy.spatial import Delaunay
@@ -236,7 +237,7 @@ def test_get_dataset_as_2d(tmp_path, slf_in):
     with xr.load_dataset(slf_in, engine="selafin") as ds:
         # Bottom layer
         FILENAME = "r3d_bump_extracted_bottom_layer.slf"
-        ref_path = Path('tests') / 'data' / FILENAME
+        ref_path = Path("tests") / "data" / FILENAME
         out_path = tmp_path / FILENAME
         ds_bottom_layer = ds.selafin.get_dataset_as_2d(plan=0)
         ds_bottom_layer.selafin.write(out_path)
@@ -244,8 +245,48 @@ def test_get_dataset_as_2d(tmp_path, slf_in):
 
         # Top layer
         FILENAME = "r3d_bump_extracted_top_layer.slf"
-        ref_path = Path('tests') / 'data' / FILENAME
+        ref_path = Path("tests") / "data" / FILENAME
         out_path = tmp_path / FILENAME
         ds_top_layer = ds.selafin.get_dataset_as_2d(plan=4)
         ds_top_layer.selafin.write(out_path)
         assert equals_two_binary_files(ref_path, out_path)
+
+
+@BUMP
+@pytest.mark.parametrize(
+    "plan, ref",
+    [
+        pytest.param(-1, "r3d_bump_extracted_top_layer.slf", id="top"),
+        pytest.param(-5, "r3d_bump_extracted_bottom_layer.slf", id="bottom"),
+    ],
+)
+def test_get_dataset_as_2d_negative_plan(tmp_path, slf_in, plan, ref):
+    with xr.load_dataset(slf_in, engine="selafin") as ds:
+        out_path = tmp_path / ref
+        ds.selafin.get_dataset_as_2d(plan=plan).selafin.write(out_path)
+        assert equals_two_binary_files(Path("tests") / "data" / ref, out_path)
+
+
+@pytest.mark.parametrize(
+    "slf_in",
+    [
+        pytest.param("tests/data/r3d_bump.slf", id="bump"),
+        pytest.param("tests/data/r3d_tidal_flats.slf", id="tidal_flats"),
+    ],
+)
+def test_get_dataset_as_2d_negative_plan_equivalence(slf_in):
+    with xr.open_dataset(slf_in, engine="selafin") as ds:
+        nb_planes = ds.sizes["plan"]
+        for pos, neg in [(nb_planes - 1, -1), (0, -nb_planes)]:
+            xr.testing.assert_identical(
+                ds.selafin.get_dataset_as_2d(plan=pos).load(),
+                ds.selafin.get_dataset_as_2d(plan=neg).load(),
+            )
+
+
+@BUMP
+@pytest.mark.parametrize("plan", [5, -6])
+def test_get_dataset_as_2d_out_of_range(slf_in, plan):
+    with xr.load_dataset(slf_in, engine="selafin") as ds:
+        with pytest.raises(IndexError, match="out of range"):
+            ds.selafin.get_dataset_as_2d(plan=plan)
