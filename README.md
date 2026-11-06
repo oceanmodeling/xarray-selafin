@@ -1,6 +1,8 @@
 [![Available on pypi](https://img.shields.io/pypi/v/xarray-selafin.svg)](https://pypi.python.org/pypi/xarray-selafin/)
 [![CI](https://github.com/oceanmodeling/xarray-selafin/actions/workflows/run_tests.yml/badge.svg)](https://github.com/oceanmodeling/xarray-selafin/actions/workflows/run_tests.yml)
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/oceanmodeling/xarray-selafin/blob/main/workshop/01_getting_started.ipynb)
+
 # xarray backend for Selafin formats
 
 Supports lazy loading by default.
@@ -121,3 +123,9 @@ All attributes are optional except `ikle2`:
 | ikle3      | Connectivity table in 3D (1-indexed, only in 3D, optional)              | (can be rebuilt from 2D)       |
 | variables  | Dictionary with variable names and units (key is variable abbreviation) | -                              |
 | date_start | Starting date with integers (year to seconds)                           | (from first time serie)        |
+
+## Cite this project
+
+```
+Saillour, Thomas; Salamon, Peter; Voukouvalas, Evangelos; Bourban, Sébastien E.; Cuomo, Giovanni (2024): Support for global models and integration of TELEMAC in a Python-based ecosystem. In: Proceedings of the XXXth TELEMAC User Conference, Chambéry, 8–9 October 2024.
+```
