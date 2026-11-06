@@ -193,4 +193,4 @@ TELEMAC has used different names for the same variable across versions.
 | `NU` | NU POUR VITESSE | NU FOR VELOCITY | M2/S |
 
 Source tables: `Serafin_var2D.csv` and `Serafin_var3D.csv`, shipped in the
-`data/` folder of the underlying [`serafin`](https://pypi.org/project/serafin/) package.
+`data/` folder of the underlying [`python-serafin`](https://pypi.org/project/python-serafin/) package.
