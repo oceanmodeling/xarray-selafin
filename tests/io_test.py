@@ -267,6 +267,23 @@ def test_get_dataset_as_2d_negative_plan(tmp_path, slf_in, plan, ref):
         assert equals_two_binary_files(Path("tests") / "data" / ref, out_path)
 
 
+@pytest.mark.parametrize(
+    "slf_in",
+    [
+        pytest.param("tests/data/r3d_bump.slf", id="bump"),
+        pytest.param("tests/data/r3d_tidal_flats.slf", id="tidal_flats"),
+    ],
+)
+def test_get_dataset_as_2d_negative_plan_equivalence(slf_in):
+    with xr.open_dataset(slf_in, engine="selafin") as ds:
+        nb_planes = ds.sizes["plan"]
+        for pos, neg in [(nb_planes - 1, -1), (0, -nb_planes)]:
+            xr.testing.assert_identical(
+                ds.selafin.get_dataset_as_2d(plan=pos).load(),
+                ds.selafin.get_dataset_as_2d(plan=neg).load(),
+            )
+
+
 @BUMP
 @pytest.mark.parametrize("plan", [5, -6])
 def test_get_dataset_as_2d_out_of_range(slf_in, plan):
